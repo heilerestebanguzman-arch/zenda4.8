@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # POSTGRESQL + POSTGIS
+  # ============================================
+  postgres:
+    image: postgis/postgis:15-3.4
+    container_name: zenda-postgres
+    environment:
+      POSTGRES_USER: zenda_admin
+      POSTGRES_PASSWORD: zenda_secure_pass_2026
+      POSTGRES_DB: zenda
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./docker-data/postgres:/var/lib/postgresql/data
+      - ./infrastructure/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zenda_admin -d zenda"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zenda-network
+
+  # ============================================
+  # REDIS
+  # ============================================
+  redis:
+    image: redis:7.2-alpine
+    container_name: zenda-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./docker-data/redis:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zenda-network
+
+  # ============================================
+  # EMQX (MQTT)
+  # ============================================
+  mqtt:
+    image: emqx/emqx:5.3
+    container_name: zenda-mqtt
+    ports:
+      - "1883:1883"      # MQTT
+      - "8083:8083"      # WebSocket
+      - "8084:8084"      # Dashboard
+    volumes:
+      - ./docker-data/emqx:/opt/emqx/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "emqx", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - zenda-network
+
+networks:
+  zenda-network:
+    driver: bridge
