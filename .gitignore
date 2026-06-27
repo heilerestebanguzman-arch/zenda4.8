@@ -1,0 +1,71 @@
+# ============================================
+# ZENDA v4.8 - .gitignore DEFINITIVO
+# ============================================
+
+# === Dependencias ===
+node_modules/
+vendor/
+go/pkg/
+packages/
+
+# === Variables de entorno ===
+.env
+.env.local
+.env.*.local
+*.env
+
+# === Datos de Docker ===
+docker-data/
+volumes/
+*.vhdx
+
+# === Logs ===
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# === Binarios y compilación ===
+bin/
+dist/
+build/
+*.exe
+*.dll
+*.so
+*.dylib
+*.out
+*.test
+
+# === IDEs ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# === Sistema Operativo ===
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# === Archivos temporales ===
+tmp/
+temp/
+*.tmp
+*.temp
+
+# === Cobertura de pruebas ===
+coverage/
+*.cover
+*.cov
+*.lcov
+
+# === Terraform ===
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# === K8s secrets ===
+*.secret.yaml
+secrets/
