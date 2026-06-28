@@ -1,6 +1,8 @@
+version: '3.8'
+
 services:
   # ============================================
-  # BASE DE DATOS (PostgreSQL + PostGIS)
+  # POSTGRESQL
   # ============================================
   postgres:
     image: postgis/postgis:15-3.4
@@ -12,7 +14,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./modulo_1_flota/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql
+      - ./migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
@@ -43,7 +45,7 @@ services:
       - zenda-network
 
   # ============================================
-  # MQTT BROKER (EMQX)
+  # EMQX (MQTT Broker)
   # ============================================
   mqtt:
     image: emqx/emqx:5.3
@@ -64,7 +66,7 @@ services:
       - zenda-network
 
   # ============================================
-  # MÓDULO 1 - FLOTA (Go)
+  # MÓDULO 1 - FLOTA
   # ============================================
   modulo-1-flota:
     build:
@@ -93,47 +95,6 @@ services:
     restart: unless-stopped
     networks:
       - zenda-network
-
-  # ============================================
-  # MÓDULO 2 - USUARIOS (Node.js/TypeScript)
-  # ============================================
-  modulo-2-usuarios:
-    build:
-      context: ./modulo_2_usuarios
-      dockerfile: Dockerfile
-    container_name: zenda-modulo-2-usuarios
-    ports:
-      - "3000:3000"
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: zenda
-      DB_USER: zenda_admin
-      DB_PASSWORD: zenda_secure_pass_2026
-      JWT_SECRET: zenda_jwt_secret_2026
-      PORT: 3000
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - zenda-network
-
-  # ============================================
-  # MIGRACIONES (golang-migrate)
-  # ============================================
-  migrate:
-    image: migrate/migrate:v4.18.1
-    container_name: zenda-migrate
-    command: -path=/migrations -database postgres://zenda_admin:zenda_secure_pass_2026@postgres:5432/zenda?sslmode=disable up
-    volumes:
-      - ./modulo_1_flota/migrations:/migrations
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - zenda-network
-    restart: on-failure
 
 networks:
   zenda-network:

@@ -1,11 +1,12 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { TokenServicePort } from '../../core/ports/TokenServicePort';
 
 export class JwtTokenService implements TokenServicePort {
   constructor(private secret: string, private expiresIn: string = '7d') {}
 
   async generate(userId: string, email: string, role: string): Promise<string> {
-    return jwt.sign({ userId, email, role }, this.secret, { expiresIn: this.expiresIn });
+    const options: SignOptions = { expiresIn: this.expiresIn as any };
+    return jwt.sign({ userId, email, role }, this.secret, options);
   }
 
   async verify(token: string): Promise<{ userId: string; email: string; role: string } | null> {
