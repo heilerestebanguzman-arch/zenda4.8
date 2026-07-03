@@ -1,0 +1,154 @@
+ services:
+  postgres:
+    image: postgis/postgis:15-3.4
+    container_name: zenda-postgres
+    environment:
+      POSTGRES_USER: zenda_admin
+      POSTGRES_PASSWORD: zenda_secure_pass_2026
+      POSTGRES_DB: zenda
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./modulo_1_flota/migrations:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zenda_admin -d zenda"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zenda-network
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: zenda-redis
+    ports:
+      - "6379:6379"
+     volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zenda-network
+
+  mqtt:
+    image: emqx/emqx:5.3
+    container_name: zenda-mqtt
+    ports:
+      - "1883:1883"
+      - "18083:8083"   # Cambiar el puerto mapeado para evitar conflicto
+      - "8084:8084"
+    volumes:
+      - emqx_data:/opt/emqx/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "emqx", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - zenda-network
+
+  modulo-1-flota:
+    build:
+      context: ./modulo_1_flota
+      dockerfile: Dockerfile
+    container_name: zenda-modulo-1-flota
+    ports:
+      - "8081:8081"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: zenda
+      DB_USER: zenda_admin
+      DB_PASSWORD: zenda_secure_pass_2026
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MQTT_BROKER: tcp://mqtt:1883
+      PORT: 8081
+      JWT_SECRET: zenda_jwt_secret_2026
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mqtt:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - zenda-network
+
+  modulo-2-usuarios:
+    build:
+      context: ./modulo_2_usuarios
+      dockerfile: Dockerfile
+    container_name: zenda-modulo-2-usuarios
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: zenda
+      DB_USER: zenda_admin
+      DB_PASSWORD: zenda_secure_pass_2026
+      JWT_SECRET: zenda_jwt_secret_2026
+      PORT: 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - zenda-network
+
+  modulo-3-cobro:
+    build:
+      context: ./modulo_3_cobro
+      dockerfile: Dockerfile
+    container_name: zenda-modulo-3-cobro
+    ports:
+      - "8085:8083"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: zenda
+      DB_USER: zenda_admin
+      DB_PASSWORD: zenda_secure_pass_2026
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: zenda_jwt_secret_2026
+      PORT: 8083
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - zenda-network
+
+  migrate:
+    image: migrate/migrate:v4.18.1
+    container_name: zenda-migrate
+    command: -path=/migrations -database postgres://zenda_admin:zenda_secure_pass_2026@postgres:5432/zenda?sslmode=disable up
+    volumes:
+      - ./modulo_1_flota/migrations:/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - zenda-network
+    restart: on-failure
+
+networks:
+  zenda-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  emqx_data:

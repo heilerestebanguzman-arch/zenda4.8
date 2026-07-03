@@ -1,7 +1,4 @@
 services:
-  # ============================================
-  # BASE DE DATOS (PostgreSQL + PostGIS)
-  # ============================================
   postgres:
     image: postgis/postgis:15-3.4
     container_name: zenda-postgres
@@ -12,134 +9,199 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./modulo_1_flota/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql
       - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U zenda_admin -d zenda"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U zenda_admin"]
+      interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - zenda-network
 
-  # ============================================
-  # REDIS (Caché)
-  # ============================================
   redis:
-    image: redis:7.2-alpine
+    image: redis:7-alpine
     container_name: zenda-redis
     ports:
       - "6379:6379"
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - zenda-network
 
-  # ============================================
-  # MQTT BROKER (EMQX)
-  # ============================================
-  mqtt:
-    image: emqx/emqx:5.3
-    container_name: zenda-mqtt
+  nats:
+    image: nats:2.10-alpine
+    container_name: zenda-nats
     ports:
-      - "1883:1883"
-      - "8083:8083"
-      - "8084:8084"
-    volumes:
-      - emqx_data:/opt/emqx/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "emqx", "ping"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    networks:
-      - zenda-network
+      - "4222:4222"
+      - "8222:8222"
+    command: ["-js"]
 
-  # ============================================
-  # MÓDULO 1 - FLOTA (Go)
-  # ============================================
   modulo-1-flota:
     build:
       context: ./modulo_1_flota
       dockerfile: Dockerfile
     container_name: zenda-modulo-1-flota
-    ports:
-      - "8081:8081"
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: zenda
       DB_USER: zenda_admin
       DB_PASSWORD: zenda_secure_pass_2026
+      DB_NAME: zenda
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      MQTT_BROKER: tcp://mqtt:1883
+      MQTT_BROKER: mqtt://mqtt:1883
+      NATS_URL: nats://nats:4222
       PORT: 8081
+    ports:
+      - "8081:8081"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      mqtt:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - zenda-network
+      nats:
+        condition: service_started
 
-  # ============================================
-  # MÓDULO 2 - USUARIOS (Node.js/TypeScript)
-  # ============================================
   modulo-2-usuarios:
     build:
       context: ./modulo_2_usuarios
       dockerfile: Dockerfile
     container_name: zenda-modulo-2-usuarios
-    ports:
-      - "3000:3000"
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: zenda
       DB_USER: zenda_admin
       DB_PASSWORD: zenda_secure_pass_2026
-      JWT_SECRET: zenda_jwt_secret_2026
+      DB_NAME: zenda
+      JWT_SECRET: zenda_super_secret_jwt_key_2026
       PORT: 3000
+    ports:
+      - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - zenda-network
 
-  # ============================================
-  # MIGRACIONES (golang-migrate)
-  # ============================================
-  migrate:
-    image: migrate/migrate:v4.18.1
-    container_name: zenda-migrate
-    command: -path=/migrations -database postgres://zenda_admin:zenda_secure_pass_2026@postgres:5432/zenda?sslmode=disable up
-    volumes:
-      - ./modulo_1_flota/migrations:/migrations
+  modulo-3-cobro:
+    build:
+      context: ./modulo_3_cobro
+      dockerfile: Dockerfile
+    container_name: zenda-modulo-3-cobro
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: zenda_admin
+      DB_PASSWORD: zenda_secure_pass_2026
+      DB_NAME: zenda
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NATS_URL: nats://nats:4222
+      PORT: 8085
+    ports:
+      - "8085:8085"
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  modulo-4-admin:
+    build:
+      context: ./modulo_4_admin
+      dockerfile: Dockerfile
+    container_name: zenda-modulo-4-admin
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: zenda_admin
+      DB_PASSWORD: zenda_secure_pass_2026
+      DB_NAME: zenda
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  modulo-8-crm:
+    build:
+      context: ./modulo_8_crm
+      dockerfile: Dockerfile
+    container_name: zenda-modulo-8-crm
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: zenda_admin
+      DB_PASSWORD: zenda_secure_pass_2026
+      DB_NAME: zenda
+      NATS_URL: nats://nats:4222
+      PORT: 3002
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  modulo-9-incidentes:
+    build:
+      context: ./modulo_9_incidentes
+      dockerfile: Dockerfile
+    container_name: zenda-modulo-9-incidentes
+    environment:
+      NATS_URL: nats://nats:4222
+      PORT: 8089
+    ports:
+      - "8089:8089"
+    depends_on:
+      nats:
+        condition: service_started
+
+  web-dashboard:
+    build:
+      context: ./web_dashboard
+      dockerfile: Dockerfile
+    container_name: zenda-web-dashboard
+    ports:
+      - "3003:80"
+    depends_on:
+      modulo-8-crm:
+        condition: service_started
+
+  modulo-5-inference:
+    build:
+      context: ./modulo_5_analitica/inference
+      dockerfile: Dockerfile
+    container_name: zenda-modulo-5-inference
+    environment:
+      PORT: 8086
+      REDIS_HOST: redis
+    ports:
+      - "8086:8086"
+    depends_on:
+      - redis
     networks:
-      - zenda-network
-    restart: on-failure
+      - default
+
+  modulo-5-ml:
+    build:
+      context: ./modulo_5_analitica/ml_pipeline
+      dockerfile: Dockerfile.ml
+    container_name: zenda-modulo-5-ml
+    environment:
+      DATABASE_URL: postgresql://zenda_admin:zenda_secure_pass_2026@postgres:5432/zenda
+      REDIS_HOST: redis
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - default
 
 networks:
-  zenda-network:
-    driver: bridge
+  default:
+    name: zenda48_default
 
 volumes:
   postgres_data:
-  redis_data:
-  emqx_data:
+    name: zenda48_postgres_data

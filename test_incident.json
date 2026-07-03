@@ -1,0 +1,11 @@
+{
+  "bus_id": "bus-001",
+  "driver_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+  "type": "PANIC_BUTTON",
+  "severity": "CRITICAL",
+  "location": {
+    "latitude": -17.393,
+    "longitude": -66.157
+  },
+  "description": "Botón de pánico activado en Ruta 1 - Centro"
+}

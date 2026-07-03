@@ -1,0 +1,32 @@
+
+  # ============================================
+  # MÓDULO 5 - ANALÍTICA (Python + Go)
+  # ============================================
+  modulo-5-inference:
+    build:
+      context: ./modulo_5_analitica/inference
+      dockerfile: Dockerfile
+    container_name: zenda-modulo-5-inference
+    environment:
+      PORT: 8086
+      REDIS_HOST: redis
+    ports:
+      - "8086:8086"
+    depends_on:
+      - redis
+    networks:
+      - default
+
+  modulo-5-ml:
+    build:
+      context: ./modulo_5_analitica/ml_pipeline
+      dockerfile: Dockerfile.ml
+    container_name: zenda-modulo-5-ml
+    environment:
+      DATABASE_URL: postgresql://zenda_admin:zenda_secure_pass_2026@postgres:5432/zenda
+      REDIS_HOST: redis
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - default
