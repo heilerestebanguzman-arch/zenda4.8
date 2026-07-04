@@ -123,6 +123,68 @@ services:
       postgres:
         condition: service_healthy
 
+  modulo-5-inference:
+    build:
+      context: ./modulo_5_analitica/inference
+      dockerfile: Dockerfile
+    container_name: zenda-modulo-5-inference
+    environment:
+      PORT: 8086
+      REDIS_HOST: redis
+    ports:
+      - "8086:8086"
+    depends_on:
+      - redis
+    networks:
+      - default
+
+  modulo-5-ml:
+    build:
+      context: ./modulo_5_analitica/ml_pipeline
+      dockerfile: Dockerfile.ml
+    container_name: zenda-modulo-5-ml
+    environment:
+      DATABASE_URL: postgresql://zenda_admin:zenda_secure_pass_2026@postgres:5432/zenda
+      REDIS_HOST: redis
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - default
+
+  modulo-6-cmms:
+    build:
+      context: ./modulo_6_cmms
+      dockerfile: Dockerfile
+    container_name: zenda-modulo-6-cmms
+    environment:
+      PORT: 8087
+      DATABASE_URL: postgresql://zenda_admin:zenda_secure_pass_2026@postgres:5432/zenda?sslmode=disable
+      NATS_URL: nats://nats:4222
+    ports:
+      - "8087:8087"
+    depends_on:
+      - postgres
+    networks:
+      - default
+
+  modulo-7-clearinghouse:
+    build:
+      context: ./modulo_7_clearinghouse
+      dockerfile: Dockerfile
+    container_name: zenda-modulo-7-clearinghouse
+    environment:
+      PORT: 8090
+      DATABASE_URL: postgresql://zenda_admin:zenda_secure_pass_2026@postgres:5432/zenda?sslmode=disable
+      NATS_URL: nats://nats:4222
+    ports:
+      - "8090:8090"
+    depends_on:
+      - postgres
+      - nats
+    networks:
+      - default
+
   modulo-8-crm:
     build:
       context: ./modulo_8_crm
@@ -158,6 +220,28 @@ services:
       nats:
         condition: service_started
 
+  modulo-10-hr-conductores:
+    build:
+      context: ./modulo_10_hr_conductores
+      dockerfile: Dockerfile
+    container_name: zenda-modulo-10-hr-conductores
+    environment:
+      PORT: 8091
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: zenda_admin
+      DB_PASSWORD: zenda_secure_pass_2026
+      DB_NAME: zenda
+      NATS_URL: nats://nats:4222
+      JWT_SECRET: zenda_super_secret_jwt_key_2026
+    ports:
+      - "8091:8091"
+    depends_on:
+      - postgres
+      - nats
+    networks:
+      - default
+
   web-dashboard:
     build:
       context: ./web_dashboard
@@ -168,35 +252,6 @@ services:
     depends_on:
       modulo-8-crm:
         condition: service_started
-
-  modulo-5-inference:
-    build:
-      context: ./modulo_5_analitica/inference
-      dockerfile: Dockerfile
-    container_name: zenda-modulo-5-inference
-    environment:
-      PORT: 8086
-      REDIS_HOST: redis
-    ports:
-      - "8086:8086"
-    depends_on:
-      - redis
-    networks:
-      - default
-
-  modulo-5-ml:
-    build:
-      context: ./modulo_5_analitica/ml_pipeline
-      dockerfile: Dockerfile.ml
-    container_name: zenda-modulo-5-ml
-    environment:
-      DATABASE_URL: postgresql://zenda_admin:zenda_secure_pass_2026@postgres:5432/zenda
-      REDIS_HOST: redis
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - default
 
 networks:
   default:
