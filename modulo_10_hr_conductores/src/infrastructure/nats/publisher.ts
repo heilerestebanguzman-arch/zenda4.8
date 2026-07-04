@@ -1,7 +1,7 @@
-import { connect, Connection, StringCodec } from 'nats';
+import { connect, StringCodec, NatsConnection } from 'nats';
 
 export class NatsPublisher {
-  private connection: Connection | null = null;
+  private connection: NatsConnection | null = null;
   private sc = StringCodec();
 
   async connect(url: string): Promise<void> {

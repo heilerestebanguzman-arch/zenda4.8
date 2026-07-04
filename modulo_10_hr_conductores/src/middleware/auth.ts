@@ -5,15 +5,17 @@ export interface AuthRequest extends Request {
   user?: any;
 }
 
-export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authenticate = (req: AuthRequest, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
-    return res.status(401).json({ error: 'Missing authorization header' });
+    res.status(401).json({ error: 'Missing authorization header' });
+    return;
   }
 
   const parts = authHeader.split(' ');
   if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
-    return res.status(401).json({ error: 'Invalid authorization header format' });
+    res.status(401).json({ error: 'Invalid authorization header format' });
+    return;
   }
 
   try {
@@ -22,13 +24,14 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     req.user = decoded;
     next();
   } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' });
+    res.status(401).json({ error: 'Invalid token' });
   }
 };
 
-export const adminOnly = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const adminOnly = (req: AuthRequest, res: Response, next: NextFunction): void => {
   if (!req.user || req.user.role !== 'ADMIN') {
-    return res.status(403).json({ error: 'Admin role required' });
+    res.status(403).json({ error: 'Admin role required' });
+    return;
   }
   next();
 };
