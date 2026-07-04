@@ -12,7 +12,7 @@ export class Handlers {
     private assignBusUC: AssignBusUseCase
   ) {}
 
-  healthCheck = (req: Request, res: Response) => {
+  healthCheck = (_req: Request, res: Response): void => {
     res.json({
       status: 'ok',
       service: 'modulo_10_hr_conductores',
@@ -20,7 +20,7 @@ export class Handlers {
     });
   };
 
-  createDriver = async (req: Request, res: Response) => {
+  createDriver = async (req: Request, res: Response): Promise<void> => {
     try {
       const driver = await this.createDriverUC.execute(req.body);
       res.status(201).json({ status: 'ok', driver });
@@ -29,7 +29,7 @@ export class Handlers {
     }
   };
 
-  listDrivers = async (req: Request, res: Response) => {
+  listDrivers = async (req: Request, res: Response): Promise<void> => {
     try {
       const drivers = await this.listDriversUC.execute(req.query.status as string);
       res.json({ status: 'ok', drivers });
@@ -38,7 +38,7 @@ export class Handlers {
     }
   };
 
-  updateDriver = async (req: Request, res: Response) => {
+  updateDriver = async (req: Request, res: Response): Promise<void> => {
     try {
       const driver = await this.updateDriverUC.execute(req.params.id, req.body);
       res.json({ status: 'ok', driver });
@@ -47,7 +47,7 @@ export class Handlers {
     }
   };
 
-  assignBus = async (req: Request, res: Response) => {
+  assignBus = async (req: Request, res: Response): Promise<void> => {
     try {
       const { driverId } = req.params;
       const { busId } = req.body;

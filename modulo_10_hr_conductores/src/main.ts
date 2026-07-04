@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
-import { PostgresDriverRepository, PostgresContractRepository, PostgresEvaluationRepository } from './infrastructure/postgres/repository';
+import { PostgresDriverRepository } from './infrastructure/postgres/repository';
 import { NatsPublisher } from './infrastructure/nats/publisher';
 import { CreateDriverUseCase } from './usecases/create_driver';
 import { ListDriversUseCase } from './usecases/list_drivers';
@@ -23,31 +23,21 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// ============================================
-// INICIALIZAR REPOSITORIOS
-// ============================================
+// Inicializar repositorios
 const driverRepo = new PostgresDriverRepository();
-const contractRepo = new PostgresContractRepository();
-const evaluationRepo = new PostgresEvaluationRepository();
 
-// ============================================
-// CONECTAR A NATS
-// ============================================
+// Conectar a NATS
 const natsUrl = process.env.NATS_URL || 'nats://localhost:4222';
 const natsPublisher = new NatsPublisher();
 natsPublisher.connect(natsUrl);
 
-// ============================================
-// INICIALIZAR USECASES
-// ============================================
+// UseCases
 const createDriverUC = new CreateDriverUseCase(driverRepo, natsPublisher);
 const listDriversUC = new ListDriversUseCase(driverRepo);
 const updateDriverUC = new UpdateDriverUseCase(driverRepo, natsPublisher);
 const assignBusUC = new AssignBusUseCase(driverRepo, natsPublisher);
 
-// ============================================
-// INICIALIZAR HANDLERS
-// ============================================
+// Handlers
 const handlers = new Handlers(
   createDriverUC,
   listDriversUC,
@@ -55,21 +45,13 @@ const handlers = new Handlers(
   assignBusUC
 );
 
-// ============================================
-// RUTAS
-// ============================================
-// Públicas
+// Rutas
 app.get('/health', handlers.healthCheck);
-
-// Protegidas
 app.post('/api/v1/drivers', authenticate, adminOnly, handlers.createDriver);
 app.get('/api/v1/drivers', authenticate, handlers.listDrivers);
 app.put('/api/v1/drivers/:id', authenticate, adminOnly, handlers.updateDriver);
 app.post('/api/v1/drivers/:driverId/assign-bus', authenticate, adminOnly, handlers.assignBus);
 
-// ============================================
-// INICIAR SERVIDOR
-// ============================================
 app.listen(port, () => {
   console.log(`🚀 Módulo 10 - HR Conductores corriendo en puerto ${port}`);
   console.log(`📊 Health check: http://localhost:${port}/health`);
@@ -77,9 +59,6 @@ app.listen(port, () => {
   console.log(`👑 Rutas ADMIN protegidas`);
 });
 
-// ============================================
-// GRACEFUL SHUTDOWN
-// ============================================
 process.on('SIGINT', async () => {
   console.log('🛑 Apagando HR Conductores...');
   await natsPublisher.close();
