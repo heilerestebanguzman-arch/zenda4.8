@@ -1,46 +1,115 @@
 import { Request, Response } from 'express';
-import { RegisterUserUseCase } from '../../../core/use-cases/RegisterUser';
-import { AuthenticateUserUseCase } from '../../../core/use-cases/AuthenticateUser';
-import { RegisterSchema, LoginSchema } from '../../../core/validations/AuthValidation';
-import { DomainError } from '../../../core/errors/DomainErrors';
+import { AuthenticateUser } from '../../../core/use-cases/AuthenticateUser';
+import { RefreshToken } from '../../../core/use-cases/RefreshToken';
 
 export class AuthController {
   constructor(
-    private registerUser: RegisterUserUseCase,
-    private authenticateUser: AuthenticateUserUseCase
+    private authenticateUser: AuthenticateUser,
+    private refreshToken: RefreshToken
   ) {}
 
-  async register(req: Request, res: Response) {
+  async login(req: Request, res: Response): Promise<Response> {
     try {
-      const validatedData = RegisterSchema.parse(req.body);
-      const user = await this.registerUser.execute(validatedData);
-      return res.status(201).json({ status: 'ok', user });
-    } catch (error: any) {
-      if (error instanceof DomainError) {
-        return res.status(400).json({ status: 'error', code: error.code, message: error.message });
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({
+          status: 'error',
+          code: 'MISSING_FIELDS',
+          message: 'Email y password son requeridos'
+        });
       }
-      if (error.issues) {
-        return res.status(400).json({ status: 'error', message: 'Datos inválidos', details: error.issues });
+
+      const result = await this.authenticateUser.execute(email, password);
+
+      if (!result) {
+        return res.status(401).json({
+          status: 'error',
+          code: 'INVALID_CREDENTIALS',
+          message: 'Credenciales inválidas'
+        });
       }
-      console.error(error);
-      return res.status(500).json({ status: 'error', message: 'Error interno del servidor' });
+
+      return res.json({
+        status: 'ok',
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn,
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          fullName: result.user.fullName,
+          role: result.user.role
+        }
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      return res.status(500).json({
+        status: 'error',
+        code: 'INTERNAL_ERROR',
+        message: 'Error interno del servidor'
+      });
     }
   }
 
-  async login(req: Request, res: Response) {
+  async refresh(req: Request, res: Response): Promise<Response> {
     try {
-      const validatedData = LoginSchema.parse(req.body);
-      const result = await this.authenticateUser.execute(validatedData.email, validatedData.password);
-      return res.status(200).json({ status: 'ok', ...result });
-    } catch (error: any) {
-      if (error instanceof DomainError) {
-        return res.status(401).json({ status: 'error', code: error.code, message: error.message });
+      const { refreshToken } = req.body;
+
+      if (!refreshToken) {
+        return res.status(400).json({
+          status: 'error',
+          code: 'MISSING_TOKEN',
+          message: 'Refresh token es requerido'
+        });
       }
-      if (error.issues) {
-        return res.status(400).json({ status: 'error', message: 'Datos inválidos', details: error.issues });
+
+      const result = await this.refreshToken.execute(refreshToken);
+
+      if (!result) {
+        return res.status(401).json({
+          status: 'error',
+          code: 'INVALID_REFRESH_TOKEN',
+          message: 'Refresh token inválido o expirado'
+        });
       }
-      console.error(error);
-      return res.status(500).json({ status: 'error', message: 'Error interno del servidor' });
+
+      return res.json({
+        status: 'ok',
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn
+      });
+    } catch (error) {
+      console.error('Refresh error:', error);
+      return res.status(500).json({
+        status: 'error',
+        code: 'INTERNAL_ERROR',
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  async logout(req: Request, res: Response): Promise<Response> {
+    try {
+      const { refreshToken } = req.body;
+
+      if (refreshToken) {
+        // Eliminar refresh token de Redis
+        await this.refreshToken['tokenRepository'].delete(refreshToken);
+      }
+
+      return res.json({
+        status: 'ok',
+        message: 'Logout exitoso'
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      return res.status(500).json({
+        status: 'error',
+        code: 'INTERNAL_ERROR',
+        message: 'Error interno del servidor'
+      });
     }
   }
 }

@@ -69,3 +69,11 @@ coverage/
 # === K8s secrets ===
 *.secret.yaml
 secrets/
+# Variables de entorno
+.env
+.env.local
+.env.*.local
+
+# Certificados (si son auto-firmados)
+certs/*.pem
+certs/*.key

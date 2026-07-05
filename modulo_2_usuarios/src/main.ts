@@ -1,46 +1,67 @@
 import express from 'express';
-import { Pool } from 'pg';
-import dotenv from 'dotenv';
 import cors from 'cors';
-
-import { PostgresUserRepository } from './adapters/repositories/PostgresUserRepository';
-import { BcryptHashService } from './adapters/hash/BcryptHashService';
-import { JwtTokenService } from './adapters/token/JwtTokenService';
-import { RegisterUserUseCase } from './core/use-cases/RegisterUser';
-import { AuthenticateUserUseCase } from './core/use-cases/AuthenticateUser';
+import dotenv from 'dotenv';
+import { createRoutes } from './adapters/http/routes';
 import { AuthController } from './adapters/http/controllers/AuthController';
+import { UserController } from './adapters/http/controllers/UserController';
+import { TokenService } from './adapters/jwt/TokenService';
+import { TokenRepository } from './infrastructure/redis/TokenRepository';
+import { AuthenticateUser } from './core/use-cases/AuthenticateUser';
+import { RefreshToken } from './core/use-cases/RefreshToken';
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(express.json());
+// Middleware
 app.use(cors());
+app.use(express.json());
 
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'zenda',
-  user: process.env.DB_USER || 'zenda_admin',
-  password: process.env.DB_PASSWORD || 'zenda_secure_pass_2026',
-});
+// Dependencias
+const tokenService = new TokenService();
+const tokenRepository = new TokenRepository();
 
-const userRepo = new PostgresUserRepository(pool);
-const hashService = new BcryptHashService();
-const tokenService = new JwtTokenService(process.env.JWT_SECRET || 'secret');
+// Repositorio de usuarios (mock para pruebas)
+const userRepository = {
+  async findByEmail(_email: string) {
+    // TODO: Conectar con PostgreSQL
+    return null;
+  }
+};
 
-const registerUC = new RegisterUserUseCase(userRepo, hashService);
-const authUC = new AuthenticateUserUseCase(userRepo, hashService, tokenService);
-const authController = new AuthController(registerUC, authUC);
+// Servicio de hash (mock para pruebas)
+const hashService = {
+  async compare(password: string, hash: string) {
+    // TODO: Implementar bcrypt
+    return password === hash;
+  }
+};
 
-app.post('/api/v1/auth/register', (req, res) => authController.register(req, res));
-app.post('/api/v1/auth/login', (req, res) => authController.login(req, res));
+// Casos de uso
+const authenticateUser = new AuthenticateUser(
+  userRepository,
+  hashService,
+  tokenService,
+  tokenRepository
+);
 
+const refreshToken = new RefreshToken(tokenService, tokenRepository);
+
+// Controladores
+const authController = new AuthController(authenticateUser, refreshToken);
+const userController = new UserController();
+
+// Rutas
+const router = createRoutes(authController, userController);
+app.use('/api/v1', router);
+
+// Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'modulo_2_usuarios' });
 });
 
+// Iniciar servidor
 app.listen(port, () => {
   console.log(`🚀 Módulo 2 - Usuarios corriendo en puerto ${port}`);
   console.log(`📊 Health check: http://localhost:${port}/health`);

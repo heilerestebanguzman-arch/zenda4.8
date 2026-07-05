@@ -40,7 +40,7 @@ export class PublicHandler {
     }
   }
 
-  async getRoutes(req: Request, res: Response): Promise<Response> {
+  async getRoutes(_req: Request, res: Response): Promise<Response> {
     try {
       const routes = await repo.getRoutes();
       return res.json(routes);
@@ -50,7 +50,7 @@ export class PublicHandler {
     }
   }
 
-  async getBuses(req: Request, res: Response): Promise<Response> {
+  async getBuses(_req: Request, res: Response): Promise<Response> {
     try {
       const buses = await repo.getBuses();
       return res.json(buses);
@@ -106,7 +106,7 @@ export class PublicHandler {
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           error: 'Invalid payload',
-          details: error.errors
+          details: error.issues // CORREGIDO: 'issues' en lugar de 'errors'
         });
       }
       console.error('Error creating order:', error);

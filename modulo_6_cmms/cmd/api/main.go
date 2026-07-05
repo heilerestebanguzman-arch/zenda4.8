@@ -1,115 +1,94 @@
 package main
 
 import (
-    "encoding/json"
-    "log"
-    "net/http"
-    "os"
-    "time"
+	"database/sql"
+	"encoding/json"
+	"log"
+	"net/http"
+	"os"
 
-    "github.com/google/uuid"
-    "github.com/gorilla/mux"
-    "modulo_6_cmms/internal/domain"
-    "modulo_6_cmms/internal/infrastructure/nats"
-    "modulo_6_cmms/internal/infrastructure/postgres"
-    "modulo_6_cmms/internal/ports/http/handlers"
-    "modulo_6_cmms/internal/usecases"
+	_ "github.com/lib/pq"
+	"github.com/nats-io/nats.go"
+
+	natssub "modulo_6_cmms/internal/infrastructure/nats"
 )
 
-func getEnv(key, fallback string) string {
-    if v := os.Getenv(key); v != "" {
-        return v
-    }
-    return fallback
-}
-
 func main() {
-    port := getEnv("PORT", "8087")
-    connStr := getEnv("DATABASE_URL", "postgresql://zenda_admin:zenda_secure_pass_2026@localhost:5432/zenda?sslmode=disable")
-    natsURL := getEnv("NATS_URL", "nats://nats:4222")
+	// Configuración
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8087"
+	}
 
-    repo, err := postgres.NewPostgresRepository(connStr)
-    if err != nil {
-        log.Fatalf("❌ Error conectando a PostgreSQL: %v", err)
-    }
-    log.Println("✅ Conectado a PostgreSQL")
+	dbHost := os.Getenv("DB_HOST")
+	if dbHost == "" {
+		dbHost = "localhost"
+	}
 
-    var eventPub *nats.EventPublisher
-    eventPub, err = nats.NewEventPublisher(natsURL)
-    if err != nil {
-        log.Printf("⚠️ Error conectando a NATS: %v (continuando sin eventos)", err)
-        eventPub = nil
-    } else {
-        log.Println("✅ Conectado a NATS")
-        defer eventPub.Close()
-    }
+	dbPort := os.Getenv("DB_PORT")
+	if dbPort == "" {
+		dbPort = "5432"
+	}
 
-    createOrderUC := usecases.NewCreateOrderUseCase(repo, repo, repo, eventPub)
-    listOrdersUC := usecases.NewListOrdersUseCase(repo)
-    updateOrderUC := usecases.NewUpdateOrderUseCase(repo)
+	dbUser := os.Getenv("DB_USER")
+	if dbUser == "" {
+		dbUser = "zenda_admin"
+	}
 
-    h := handlers.NewHandlers(createOrderUC, listOrdersUC, updateOrderUC, repo.Ping)
+	dbPassword := os.Getenv("DB_PASSWORD")
+	if dbPassword == "" {
+		dbPassword = "zenda_secure_pass_2026"
+	}
 
-    r := mux.NewRouter()
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		dbName = "zenda"
+	}
 
-    r.HandleFunc("/health", h.HealthCheck).Methods("GET")
+	natsURL := os.Getenv("NATS_URL")
+	if natsURL == "" {
+		natsURL = "nats://localhost:4222"
+	}
 
-    // 🔓 MODO PRUEBA - SIN AUTENTICACIÓN
-    r.HandleFunc("/api/v1/vehicles", func(w http.ResponseWriter, req *http.Request) {
-        var input struct {
-            BusID   string `json:"bus_id"`
-            Brand   string `json:"brand"`
-            Model   string `json:"model"`
-            Year    int    `json:"year"`
-            Plate   string `json:"plate"`
-            Mileage int    `json:"mileage"`
-        }
-        if err := json.NewDecoder(req.Body).Decode(&input); err != nil {
-            http.Error(w, "Invalid body", http.StatusBadRequest)
-            return
-        }
-        v := &domain.Vehicle{
-            ID:        uuid.New(),
-            BusID:     input.BusID,
-            Brand:     input.Brand,
-            Model:     input.Model,
-            Year:      input.Year,
-            Plate:     input.Plate,
-            Mileage:   input.Mileage,
-            Status:    domain.VehicleActive,
-            CreatedAt: time.Now(),
-            UpdatedAt: time.Now(),
-        }
-        if err := repo.Create(req.Context(), v); err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-        w.Header().Set("Content-Type", "application/json")
-        w.WriteHeader(http.StatusCreated)
-        json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "vehicle": v})
-    }).Methods("POST")
+	// Conectar a PostgreSQL
+	connStr := "host=" + dbHost + " port=" + dbPort + " user=" + dbUser + " password=" + dbPassword + " dbname=" + dbName + " sslmode=disable"
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatalf("❌ Error connecting to database: %v", err)
+	}
+	defer db.Close()
 
-    r.HandleFunc("/api/v1/vehicles", func(w http.ResponseWriter, req *http.Request) {
-        vehicles, err := repo.List(req.Context())
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "vehicles": vehicles})
-    }).Methods("GET")
+	if err := db.Ping(); err != nil {
+		log.Fatalf("❌ Error pinging database: %v", err)
+	}
+	log.Println("✅ Connected to PostgreSQL")
 
-    r.HandleFunc("/api/v1/orders", h.CreateOrder).Methods("POST")
-    r.HandleFunc("/api/v1/orders", h.ListOrders).Methods("GET")
-    r.HandleFunc("/api/v1/orders/{id}", h.UpdateOrder).Methods("PUT")
+	// Conectar a NATS
+	nc, err := nats.Connect(natsURL)
+	if err != nil {
+		log.Fatalf("❌ Error connecting to NATS: %v", err)
+	}
+	defer nc.Close()
+	log.Println("✅ Connected to NATS")
 
-    log.Printf("🚀 Módulo 6 - CMMS (MODO PRUEBA - SIN JWT) corriendo en puerto %s", port)
-    log.Printf("📊 Health check: http://localhost:%s/health", port)
-    if eventPub != nil {
-        log.Printf("📨 Eventos NATS activados")
-    }
+	// Suscribirse a order.created
+	if err := natssub.SubscribeToOrders(nc); err != nil {
+		log.Fatalf("❌ Error subscribing to orders: %v", err)
+	}
 
-    if err := http.ListenAndServe(":"+port, r); err != nil {
-        log.Fatalf("❌ Error iniciando servidor: %v", err)
-    }
+	// Health check
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"status":  "ok",
+			"service": "modulo_6_cmms",
+		})
+	})
+
+	log.Printf("🚀 Módulo 6 - CMMS corriendo en puerto %s", port)
+	log.Printf("📊 Health check: http://localhost:%s/health", port)
+
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Fatalf("❌ Error starting server: %v", err)
+	}
 }

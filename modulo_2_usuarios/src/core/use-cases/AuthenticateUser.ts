@@ -1,39 +1,64 @@
-import { UserRepositoryPort } from '../ports/UserRepositoryPort';
-import { HashServicePort } from '../ports/HashServicePort';
 import { TokenServicePort } from '../ports/TokenServicePort';
-import { InvalidCredentialsError } from '../errors/DomainErrors';
+import { TokenRepository } from '../../infrastructure/redis/TokenRepository';
 
-export class AuthenticateUserUseCase {
+interface User {
+  id: string;
+  email: string;
+  passwordHash: string;
+  fullName: string;
+  role: string;
+}
+
+interface UserRepository {
+  findByEmail(email: string): Promise<User | null>;
+}
+
+interface HashService {
+  compare(password: string, hash: string): Promise<boolean>;
+}
+
+export class AuthenticateUser {
   constructor(
-    private userRepository: UserRepositoryPort,
-    private hashService: HashServicePort,
-    private tokenService: TokenServicePort
+    private userRepository: UserRepository,
+    private hashService: HashService,
+    private tokenService: TokenServicePort,
+    private tokenRepository: TokenRepository
   ) {}
 
-  async execute(email: string, password: string): Promise<{ token: string; user: { id: string; email: string; fullName: string; role: string } }> {
+  async execute(email: string, password: string): Promise<{
+    user: User;
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+  } | null> {
     // Buscar usuario
     const user = await this.userRepository.findByEmail(email);
-    if (!user) {
-      throw new InvalidCredentialsError();
-    }
+    if (!user) return null;
 
-    // Verificar contraseña
+    // Validar contraseña
     const isValid = await this.hashService.compare(password, user.passwordHash);
-    if (!isValid) {
-      throw new InvalidCredentialsError();
-    }
+    if (!isValid) return null;
 
-    // Generar token JWT
-    const token = await this.tokenService.generate(user.id, user.email, user.role);
+    // Generar tokens
+    const accessToken = this.tokenService.generateAccessToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role
+    });
+
+    const refreshToken = this.tokenService.generateRefreshToken({
+      userId: user.id,
+      email: user.email
+    });
+
+    // Guardar refresh token en Redis (7 días)
+    await this.tokenRepository.save(user.id, refreshToken, 7 * 24 * 3600);
 
     return {
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-      },
+      user,
+      accessToken,
+      refreshToken,
+      expiresIn: 900 // 15 minutos
     };
   }
 }
