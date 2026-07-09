@@ -1,0 +1,30 @@
+# Security Metrics for Prometheus
+groups:
+  - name: security_alerts
+    rules:
+      - alert: HighNumberOfLoginFailures
+        expr: rate(login_failures_total[5m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alto número de fallos de login"
+          description: "{{ $value }} fallos de login por minuto en los últimos 5 minutos"
+
+      - alert: JWTTokenRevoked
+        expr: jwt_blacklist_size > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Demasiados tokens JWT revocados"
+          description: "{{ $value }} tokens en blacklist"
+
+      - alert: SSLCertificateExpiring
+        expr: (ssl_certificate_expiry - time()) < 86400 * 7
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: "Certificado SSL expirando pronto"
+          description: "El certificado expira en menos de 7 días"

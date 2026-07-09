@@ -1,7 +1,8 @@
 import bcrypt from 'bcrypt';
+import { HashServicePort } from '../../core/ports/HashServicePort';
 
-export class BcryptHashService {
-  private readonly saltRounds = 12;
+export class BcryptHashService implements HashServicePort {
+  private saltRounds = 10;
 
   async hash(password: string): Promise<string> {
     const hash = await bcrypt.hash(password, this.saltRounds);
@@ -10,11 +11,18 @@ export class BcryptHashService {
   }
 
   async compare(password: string, hash: string): Promise<boolean> {
-    console.log('🔍 Comparando:');
-    console.log('  Password:', password);
-    console.log('  Hash:', hash);
-    const result = await bcrypt.compare(password, hash);
-    console.log('  Resultado:', result);
-    return result;
+    console.log('🔍 [BcryptHashService] Comparando:');
+    console.log('  📝 Password:', password);
+    console.log('  🔑 Hash:', hash);
+    console.log('  🔧 SaltRounds:', this.saltRounds);
+    
+    try {
+      const result = await bcrypt.compare(password, hash);
+      console.log('  ✅ Resultado:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Error en bcrypt.compare:', error);
+      return false;
+    }
   }
 }

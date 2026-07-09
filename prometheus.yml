@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'zenda-metrics'
+    static_configs:
+      - targets:
+        - 'host.docker.internal:3000'   # M2 - Usuarios
+        - 'host.docker.internal:8093'   # M12 - API Pública
+        - 'host.docker.internal:8087'   # M6 - CMMS

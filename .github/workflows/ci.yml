@@ -1,0 +1,40 @@
+name: ZENDA 4.8 CI
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module: [modulo_2_usuarios, modulo_6_cmms, modulo_12_api_publica]
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Validate Docker Compose
+        run: docker-compose config
+      
+      - name: Validate Go Modules
+        if: contains(matrix.module, 'cmms')
+        run: |
+          cd ${{ matrix.module }}
+          go mod tidy
+          go mod verify
+          go build ./...
+      
+      - name: Validate TypeScript Modules
+        if: contains(matrix.module, 'usuarios') || contains(matrix.module, 'api_publica')
+        run: |
+          cd ${{ matrix.module }}
+          npm install
+          npm run build
+      
+      - name: Run Unit Tests
+        run: |
+          cd ${{ matrix.module }}
+          npm test || go test ./...

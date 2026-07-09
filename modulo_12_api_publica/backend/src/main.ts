@@ -1,86 +1,35 @@
 import express from 'express';
-import cors from 'cors';
-import compression from 'compression';
-import helmet from 'helmet';
 import https from 'https';
-import fs from 'fs';
-import dotenv from 'dotenv';
-import { pool, redis, getNatsConnection } from './config/database';
-import router from './ports/http/routes';
-import { errorHandler } from './ports/http/middleware';
-
-dotenv.config();
+import cors from 'cors';
+import helmet from 'helmet';
+import { httpsOptions } from './config/https';
+import routes from './ports/http/routes';
+import { setupSwagger } from './config/swagger';
 
 const app = express();
-const port = process.env.PORT || 8093;
-const useHTTPS = process.env.USE_HTTPS === 'true';
+const PORT = process.env.PORT || 8093;
 
-// Middleware de seguridad
+// Middlewares
 app.use(helmet());
-app.use(compression({
-  threshold: 1024,
-  level: 6,
-}));
-
-// CORS configurado correctamente
-app.use(cors({
-  origin: ['https://dashboard.zenda.com', 'https://app.zenda.com'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true,
-}));
-
+app.use(cors());
 app.use(express.json());
 
+// Swagger
+setupSwagger(app);
+
 // Rutas
-app.use('/api/v1', router);
-app.use(errorHandler);
+app.use('/api/v1', routes);
 
-// Iniciar servidor
-if (useHTTPS) {
-  try {
-    const options = {
-      key: fs.readFileSync('../../certs/key.pem'),
-      cert: fs.readFileSync('../../certs/cert.pem'),
-    };
-    https.createServer(options, app).listen(port, () => {
-      console.log(`🚀 API Pública ZENDA 4.8 running on https://localhost:${port}`);
-      console.log(`📡 Health: https://localhost:${port}/api/v1/health`);
-    });
-  } catch (error) {
-    console.error('❌ Error loading SSL certificates:', error);
-    console.log('📌 Usando HTTP en su lugar');
-    app.listen(port, () => {
-      console.log(`🚀 API Pública ZENDA 4.8 running on http://localhost:${port}`);
-      console.log(`📡 Health: http://localhost:${port}/api/v1/health`);
-    });
-  }
-} else {
-  app.listen(port, () => {
-    console.log(`🚀 API Pública ZENDA 4.8 running on http://localhost:${port}`);
-    console.log(`📡 Health: http://localhost:${port}/api/v1/health`);
-  });
-}
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'M12-API-Publica', timestamp: new Date().toISOString() });
+});
 
-// Conectar a servicios
-(async () => {
-  try {
-    await pool.connect();
-    console.log('✅ Connected to PostgreSQL');
-  } catch (error: any) {
-    console.error('❌ PostgreSQL connection error:', error.message);
-  }
+// Iniciar servidor HTTPS
+const server = https.createServer(httpsOptions, app);
 
-  try {
-    await redis.connect();
-    console.log('✅ Connected to Redis');
-  } catch (error: any) {
-    console.error('❌ Redis connection error:', error.message);
-  }
-
-  try {
-    await getNatsConnection();
-    console.log('✅ Connected to NATS');
-  } catch (error: any) {
-    console.error('❌ NATS connection error:', error.message);
-  }
-})();
+server.listen(PORT, () => {
+  console.log(`🔒 Servidor M12 (API Pública) corriendo en https://localhost:${PORT}`);
+  console.log(`📝 Swagger: https://localhost:${PORT}/api/docs`);
+  console.log(`📝 Health: https://localhost:${PORT}/health`);
+});

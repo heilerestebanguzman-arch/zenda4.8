@@ -1,94 +1,94 @@
 package main
 
 import (
-	"database/sql"
-	"encoding/json"
-	"log"
-	"net/http"
-	"os"
+    "context"
+    "fmt"
+    "log"
+    "net/http"
+    "os"
+    "os/signal"
+    "syscall"
+    "time"
 
-	_ "github.com/lib/pq"
-	"github.com/nats-io/nats.go"
-
-	natssub "modulo_6_cmms/internal/infrastructure/nats"
+    "github.com/gin-gonic/gin"
+    "github.com/nats-io/nats.go"
+    "github.com/zenda/modulo_6_cmms/internal/config"
+    "github.com/zenda/modulo_6_cmms/internal/handlers"
+    "github.com/zenda/modulo_6_cmms/internal/services"
 )
 
 func main() {
-	// Configuración
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8087"
-	}
+    // Configurar logging
+    log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	dbHost := os.Getenv("DB_HOST")
-	if dbHost == "" {
-		dbHost = "localhost"
-	}
+    // Conectar a NATS
+    nc, err := nats.Connect(os.Getenv("NATS_URL"))
+    if err != nil {
+        log.Fatalf("Failed to connect to NATS: %v", err)
+    }
+    defer nc.Close()
 
-	dbPort := os.Getenv("DB_PORT")
-	if dbPort == "" {
-		dbPort = "5432"
-	}
+    // Crear servicios
+    orderService := services.NewOrderService(nc)
+    orderHandler := handlers.NewOrderHandler(orderService)
 
-	dbUser := os.Getenv("DB_USER")
-	if dbUser == "" {
-		dbUser = "zenda_admin"
-	}
+    // Configurar router
+    router := gin.Default()
 
-	dbPassword := os.Getenv("DB_PASSWORD")
-	if dbPassword == "" {
-		dbPassword = "zenda_secure_pass_2026"
-	}
+    // Rutas
+    router.GET("/health", func(c *gin.Context) {
+        c.JSON(http.StatusOK, gin.H{
+            "status": "ok",
+            "service": "M6-CMMS",
+            "timestamp": time.Now().UTC().Format(time.RFC3339),
+        })
+    })
 
-	dbName := os.Getenv("DB_NAME")
-	if dbName == "" {
-		dbName = "zenda"
-	}
+    // Suscribirse a eventos
+    go func() {
+        _, err := nc.Subscribe("order.created", func(msg *nats.Msg) {
+            log.Printf("📩 Evento recibido: %s", msg.Subject)
+            // Procesar evento
+        })
+        if err != nil {
+            log.Printf("Error suscribiendo a order.created: %v", err)
+        }
+    }()
 
-	natsURL := os.Getenv("NATS_URL")
-	if natsURL == "" {
-		natsURL = "nats://localhost:4222"
-	}
+    // Cargar configuración TLS
+    tlsConfig, err := config.LoadTLSConfig()
+    if err != nil {
+        log.Fatalf("Failed to load TLS config: %v", err)
+    }
 
-	// Conectar a PostgreSQL
-	connStr := "host=" + dbHost + " port=" + dbPort + " user=" + dbUser + " password=" + dbPassword + " dbname=" + dbName + " sslmode=disable"
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		log.Fatalf("❌ Error connecting to database: %v", err)
-	}
-	defer db.Close()
+    // Configurar servidor HTTPS
+    server := &http.Server{
+        Addr:      ":8087",
+        Handler:   router,
+        TLSConfig: tlsConfig,
+    }
 
-	if err := db.Ping(); err != nil {
-		log.Fatalf("❌ Error pinging database: %v", err)
-	}
-	log.Println("✅ Connected to PostgreSQL")
+    // Iniciar servidor en goroutine
+    go func() {
+        log.Printf("🔒 Servidor M6 (CMMS) corriendo en https://localhost:8087")
+        log.Printf("📝 Health: https://localhost:8087/health")
+        if err := server.ListenAndServeTLS("certs/server.crt", "certs/server.key"); err != nil && err != http.ErrServerClosed {
+            log.Fatalf("Error iniciando servidor: %v", err)
+        }
+    }()
 
-	// Conectar a NATS
-	nc, err := nats.Connect(natsURL)
-	if err != nil {
-		log.Fatalf("❌ Error connecting to NATS: %v", err)
-	}
-	defer nc.Close()
-	log.Println("✅ Connected to NATS")
+    // Esperar señal de terminación
+    quit := make(chan os.Signal, 1)
+    signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+    <-quit
 
-	// Suscribirse a order.created
-	if err := natssub.SubscribeToOrders(nc); err != nil {
-		log.Fatalf("❌ Error subscribing to orders: %v", err)
-	}
+    log.Println("Shutting down server...")
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
 
-	// Health check
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
-			"status":  "ok",
-			"service": "modulo_6_cmms",
-		})
-	})
+    if err := server.Shutdown(ctx); err != nil {
+        log.Fatalf("Server forced to shutdown: %v", err)
+    }
 
-	log.Printf("🚀 Módulo 6 - CMMS corriendo en puerto %s", port)
-	log.Printf("📊 Health check: http://localhost:%s/health", port)
-
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatalf("❌ Error starting server: %v", err)
-	}
+    log.Println("Server exited properly")
 }

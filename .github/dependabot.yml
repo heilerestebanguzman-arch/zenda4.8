@@ -1,0 +1,33 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/modulo_2_usuarios"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "security"
+
+  - package-ecosystem: "npm"
+    directory: "/modulo_12_api_publica/backend"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "security"
+
+  - package-ecosystem: "gomod"
+    directory: "/modulo_6_cmms"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "security"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "security"

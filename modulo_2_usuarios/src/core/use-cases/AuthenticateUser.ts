@@ -31,15 +31,25 @@ export class AuthenticateUser {
     refreshToken: string;
     expiresIn: number;
   } | null> {
-    // Buscar usuario
+    console.log('🔍 [AuthenticateUser] 1. Buscando usuario:', email);
+    
     const user = await this.userRepository.findByEmail(email);
-    if (!user) return null;
+    if (!user) {
+      console.log('❌ [AuthenticateUser] 2. Usuario NO encontrado');
+      return null;
+    }
+    console.log('✅ [AuthenticateUser] 2. Usuario encontrado:', user.id);
 
-    // Validar contraseña
+    console.log('🔍 [AuthenticateUser] 3. Comparando contraseña...');
     const isValid = await this.hashService.compare(password, user.passwordHash);
-    if (!isValid) return null;
+    console.log('✅ [AuthenticateUser] 4. Contraseña válida:', isValid);
+    
+    if (!isValid) {
+      console.log('❌ [AuthenticateUser] 5. Contraseña inválida');
+      return null;
+    }
 
-    // Generar tokens
+    console.log('✅ [AuthenticateUser] 6. Generando tokens...');
     const accessToken = this.tokenService.generateAccessToken({
       userId: user.id,
       email: user.email,
@@ -51,14 +61,13 @@ export class AuthenticateUser {
       email: user.email
     });
 
-    // Guardar refresh token en Redis (7 días)
     await this.tokenRepository.save(user.id, refreshToken, 7 * 24 * 3600);
 
     return {
       user,
       accessToken,
       refreshToken,
-      expiresIn: 900 // 15 minutos
+      expiresIn: 900
     };
   }
 }

@@ -1,26 +1,42 @@
-import axios from 'axios';
-import { type Ticket } from '../types/ticket';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8093/api/v1';
+const AUTH_URL = import.meta.env.VITE_AUTH_URL || 'http://localhost:3000/api/v1';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+console.log('🔍 API_URL:', API_URL);
+console.log('🔍 AUTH_URL:', AUTH_URL);
 
 export const api = {
-  async getTickets(): Promise<Ticket[]> {
-    const response = await axios.get(`${API_BASE_URL}/api/v1/tickets`);
-    return response.data.tickets;
+  async login(email: string, password: string) {
+    console.log('📤 Enviando login a:', `${AUTH_URL}/auth/login`);
+    try {
+      const response = await fetch(`${AUTH_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      console.log('📥 Respuesta status:', response.status);
+      const data = await response.json();
+      console.log('📥 Respuesta data:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Error en login:', error);
+      throw error;
+    }
   },
 
-  async getTicketsByStatus(status: string): Promise<Ticket[]> {
-    const response = await axios.get(`${API_BASE_URL}/api/v1/tickets/status/${status}`);
-    return response.data.tickets;
+  async createOrder(token: string, orderData: any) {
+    const response = await fetch(`${API_URL}/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(orderData),
+    });
+    return response.json();
   },
 
-  async getTicketsBySeverity(severity: string): Promise<Ticket[]> {
-    const response = await axios.get(`${API_BASE_URL}/api/v1/tickets/severity/${severity}`);
-    return response.data.tickets;
-  },
-
-  async getCriticalOpen(): Promise<Ticket[]> {
-    const response = await axios.get(`${API_BASE_URL}/api/v1/tickets/critical/open`);
-    return response.data.tickets;
+  async health() {
+    const response = await fetch(`${API_URL}/health`);
+    return response.json();
   },
 };
