@@ -77,3 +77,4 @@ secrets/
 # Certificados (si son auto-firmados)
 certs/*.pem
 certs/*.key
+.env

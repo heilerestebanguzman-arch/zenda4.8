@@ -2,11 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import path from 'path';
 import { pool } from './config/database';
 import { redisClient } from './config/redis';
 import reportRoutes from './controllers/reportController';
 
-dotenv.config();
+// Cargar .env desde la raíz del proyecto
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const app = express();
 const PORT = process.env.REPORT_PORT || 8094;

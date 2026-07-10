@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import dotenv from 'dotenv';
+import path from 'path';
 import { createRoutes } from './adapters/http/routes';
 import { AuthController } from './adapters/http/controllers/AuthController';
 import { UserController } from './adapters/http/controllers/UserController';
@@ -14,15 +16,16 @@ import { RefreshToken } from './core/use-cases/RefreshToken';
 import { logger } from './infrastructure/logger';
 import { seedAdmin } from './seed';
 
+// Cargar .env desde la raíz del proyecto
+dotenv.config({ path: path.join(__dirname, '../../.env') });
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middlewares
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-// Crear dependencias
 const userRepository = new UserRepository();
 const tokenRepository = new TokenRepository();
 const hashService = new BcryptHashService();
@@ -44,19 +47,14 @@ const authController = new AuthController(authenticateUser, refreshToken);
 const userController = new UserController();
 const mfaController = new MFAController();
 
-// Rutas
 app.use('/api/v1/auth', createRoutes(authController, userController, mfaController));
 
-// Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'M2-Usuarios', timestamp: new Date().toISOString() });
 });
 
-// Iniciar servidor
 app.listen(PORT, async () => {
   logger.info(`🚀 Servidor M2 (Usuarios) corriendo en http://localhost:${PORT}`);
   logger.info(`📝 Health check: http://localhost:${PORT}/health`);
-  
-  // Ejecutar seed
   await seedAdmin();
 });
