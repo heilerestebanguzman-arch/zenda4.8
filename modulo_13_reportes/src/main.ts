@@ -7,8 +7,10 @@ import { pool } from './config/database';
 import { redisClient } from './config/redis';
 import reportRoutes from './controllers/reportController';
 
-// Cargar .env desde la raíz del proyecto
+// ✅ Cargar .env desde la raíz
 dotenv.config({ path: path.join(__dirname, '../../.env') });
+
+console.log('🔑 [M13] JWT_SECRET cargado:', process.env.JWT_SECRET ? '✅ Sí' : '❌ No');
 
 const app = express();
 const PORT = process.env.REPORT_PORT || 8094;
