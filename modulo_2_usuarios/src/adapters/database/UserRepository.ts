@@ -3,8 +3,8 @@ import { pool } from '../../config/database';
 export interface User {
   id: string;
   email: string;
-  passwordHash: string;      // camelCase
-  fullName: string;         // camelCase
+  passwordHash: string;
+  fullName: string;
   role: string;
 }
 
@@ -15,13 +15,16 @@ export class UserRepository {
         'SELECT id, email, password_hash, full_name, role FROM users WHERE email = $1',
         [email]
       );
-      
-      if (!result.rows[0]) {
+
+      if (result.rows.length === 0) {
+        console.log('❌ Usuario no encontrado:', email);
         return null;
       }
 
-      // Convertir snake_case a camelCase
       const row = result.rows[0];
+      console.log('✅ Usuario encontrado:', row.email);
+      console.log('🔑 Hash almacenado:', row.password_hash);
+
       return {
         id: row.id,
         email: row.email,
@@ -30,7 +33,7 @@ export class UserRepository {
         role: row.role
       };
     } catch (error) {
-      console.error('Error al buscar usuario por email:', error);
+      console.error('❌ Error en findByEmail:', error);
       return null;
     }
   }
