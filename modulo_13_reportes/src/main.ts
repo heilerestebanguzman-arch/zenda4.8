@@ -1,9 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import dotenv from 'dotenv';
 import { pool } from './config/database';
 import { redisClient } from './config/redis';
 import reportRoutes from './controllers/reportController';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.REPORT_PORT || 8094;
