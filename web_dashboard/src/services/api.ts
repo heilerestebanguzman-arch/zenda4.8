@@ -1,42 +1,44 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8093/api/v1';
-const AUTH_URL = import.meta.env.VITE_AUTH_URL || 'http://localhost:3000/api/v1';
+import axios from 'axios';
+import { toast } from 'react-hot-toast';
 
-console.log('🔍 API_URL:', API_URL);
-console.log('🔍 AUTH_URL:', AUTH_URL);
+// Usar la URL fija de M13 (Reportes)
+const API_BASE_URL = 'http://localhost:8094';
 
-export const api = {
-  async login(email: string, password: string) {
-    console.log('📤 Enviando login a:', `${AUTH_URL}/auth/login`);
-    try {
-      const response = await fetch(`${AUTH_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      console.log('📥 Respuesta status:', response.status);
-      const data = await response.json();
-      console.log('📥 Respuesta data:', data);
-      return data;
-    } catch (error) {
-      console.error('❌ Error en login:', error);
-      throw error;
+console.log('🔍 [FRONTEND] API Base URL:', API_BASE_URL);
+
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Interceptor para agregar el token JWT
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
+    return config;
   },
+  (error) => Promise.reject(error)
+);
 
-  async createOrder(token: string, orderData: any) {
-    const response = await fetch(`${API_URL}/orders`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(orderData),
-    });
-    return response.json();
-  },
+// Interceptor para manejar errores
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error('❌ [FRONTEND] Error en API:', error);
+    if (error.response?.status === 401) {
+      toast.error('Sesión expirada. Inicia sesión nuevamente.');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
-  async health() {
-    const response = await fetch(`${API_URL}/health`);
-    return response.json();
-  },
-};
+export default api;
