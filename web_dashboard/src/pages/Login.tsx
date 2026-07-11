@@ -6,17 +6,23 @@ export const Login = () => {
   const [email, setEmail] = useState('admin@zenda.com');
   const [password, setPassword] = useState('admin123');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
+
     try {
+      console.log('🔐 Intentando login...');
       await login(email, password);
+      console.log('✅ Login exitoso');
       navigate('/dashboard');
-    } catch {
-      // Error ya manejado por el interceptor
+    } catch (err: any) {
+      console.error('❌ Error en login:', err);
+      setError(err.message || 'Error al iniciar sesión');
     } finally {
       setLoading(false);
     }
@@ -54,6 +60,10 @@ export const Login = () => {
               required
             />
           </div>
+
+          {error && (
+            <div className="text-red-600 text-sm text-center">{error}</div>
+          )}
 
           <button
             type="submit"

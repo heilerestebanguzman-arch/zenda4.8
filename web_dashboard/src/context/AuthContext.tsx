@@ -24,7 +24,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Verificar autenticación al cargar la aplicación
   useEffect(() => {
     const token = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
@@ -33,6 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         setUser(JSON.parse(storedUser));
         setIsAuthenticated(true);
+        console.log('✅ Usuario restaurado desde localStorage');
       } catch {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -43,15 +43,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await api.post('/auth/login', { email, password });
-      const { accessToken, user } = response.data;
+      console.log('🔑 [Auth] Intentando login...');
+      
+      // Usar fetch directamente para evitar problemas con el interceptor
+      const response = await fetch('http://localhost:3000/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
 
-      localStorage.setItem('token', accessToken);
-      localStorage.setItem('user', JSON.stringify(user));
-      setUser(user);
-      setIsAuthenticated(true);
-      toast.success('¡Bienvenido, ' + user.fullName + '!');
-    } catch (error) {
+      const data = await response.json();
+      console.log('📦 [Auth] Respuesta:', data);
+
+      if (data.status === 'ok' && data.accessToken) {
+        localStorage.setItem('token', data.accessToken);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setUser(data.user);
+        setIsAuthenticated(true);
+        toast.success('¡Bienvenido, ' + data.user.fullName + '!');
+        console.log('✅ [Auth] Login exitoso');
+      } else {
+        throw new Error(data.message || 'Credenciales inválidas');
+      }
+    } catch (error: any) {
+      console.error('❌ [Auth] Error en login:', error);
+      toast.error(error.message || 'Error al iniciar sesión');
       throw error;
     }
   };
