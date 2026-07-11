@@ -1,6 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
+// Usar el mismo secret que M2 (fijo para evitar problemas de carga)
+const JWT_SECRET = 'nuevo_jwt_secret_muy_largo_y_seguro_2026';
+
 export const authenticateJWT = (req: Request, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
@@ -10,15 +13,8 @@ export const authenticateJWT = (req: Request, res: Response, next: NextFunction)
 
   const token = authHeader.split(' ')[1];
   try {
-    // ✅ Usar variable de entorno (no hardcode)
-    const secret = process.env.JWT_SECRET || 'fallback_secret_only_for_dev';
-    
-    if (!process.env.JWT_SECRET) {
-      console.warn('⚠️ JWT_SECRET no está definido en .env, usando fallback de desarrollo');
-    }
-    
-    console.log('🔑 [M13] Verificando token');
-    const decoded = jwt.verify(token, secret);
+    console.log('🔑 [M13] Verificando token con secret fijo');
+    const decoded = jwt.verify(token, JWT_SECRET);
     console.log('✅ [M13] Token verificado correctamente');
     (req as any).user = decoded;
     next();

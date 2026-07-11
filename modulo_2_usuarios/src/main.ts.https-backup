@@ -1,0 +1,31 @@
+import express from 'express';
+import https from 'https';
+import cors from 'cors';
+import helmet from 'helmet';
+import { httpsOptions } from './config/https';
+import authRoutes from './adapters/http/routes';
+import { logger } from './infrastructure/logger';
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middlewares
+app.use(helmet());
+app.use(cors());
+app.use(express.json());
+
+// Rutas - usando el router por defecto
+app.use('/api/v1/auth', authRoutes);
+
+// Health check
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', service: 'M2-Usuarios', timestamp: new Date().toISOString() });
+});
+
+// Iniciar servidor HTTPS
+const server = https.createServer(httpsOptions, app);
+
+server.listen(PORT, () => {
+  logger.info(`🔒 Servidor M2 (Usuarios) corriendo en https://localhost:${PORT}`);
+  logger.info(`📝 Health check: https://localhost:${PORT}/health`);
+});

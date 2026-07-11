@@ -1,9 +1,12 @@
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import path from 'path';
 
-dotenv.config();
+// Cargar .env desde la raíz
+dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
-const JWT_SECRET = process.env.JWT_SECRET || 'zenda_super_secret_jwt_key_2026';
+// Usar el mismo secret que M2 y M13
+const JWT_SECRET = process.env.JWT_SECRET || 'nuevo_jwt_secret_muy_largo_y_seguro_2026';
 
 export interface JwtPayload {
   userId: string;
@@ -13,8 +16,10 @@ export interface JwtPayload {
 
 export const verifyToken = (token: string): JwtPayload | null => {
   try {
+    console.log('🔑 [M12] Verificando token con JWT_SECRET');
     return jwt.verify(token, JWT_SECRET) as JwtPayload;
   } catch (error) {
+    console.error('❌ [M12] Error verificando token:', error);
     return null;
   }
 };
