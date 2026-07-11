@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../../../config/jwt';
 
-// Extender Request para incluir usuario
 declare global {
   namespace Express {
     interface Request {
@@ -15,8 +14,9 @@ declare global {
 }
 
 export const authenticateJWT = (req: Request, res: Response, next: NextFunction): Response | void => {
+  console.log('🔐 [M12] Middleware authenticateJWT ejecutado');
+  
   const authHeader = req.headers.authorization;
-
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Token no proporcionado' });
   }
@@ -34,6 +34,7 @@ export const authenticateJWT = (req: Request, res: Response, next: NextFunction)
     role: payload.role,
   };
 
+  console.log('✅ Usuario autenticado:', req.user.email, 'Rol:', req.user.role);
   next();
 };
 
@@ -44,6 +45,7 @@ export const requireRole = (roles: string[]) => {
     }
 
     if (!roles.includes(req.user.role)) {
+      console.log('❌ Rol insuficiente:', req.user.role);
       return res.status(403).json({ error: 'Permisos insuficientes' });
     }
 
