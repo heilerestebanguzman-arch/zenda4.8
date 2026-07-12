@@ -1,66 +1,25 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
+import path from 'path';
+import driverRoutes from './routes/driverRoutes';
 
-import { PostgresDriverRepository } from './infrastructure/postgres/repository';
-import { NatsPublisher } from './infrastructure/nats/publisher';
-import { CreateDriverUseCase } from './usecases/create_driver';
-import { ListDriversUseCase } from './usecases/list_drivers';
-import { UpdateDriverUseCase } from './usecases/update_driver';
-import { AssignBusUseCase } from './usecases/assign_bus';
-import { Handlers } from './ports/http/handlers';
-import { authenticate, adminOnly } from './middleware/auth';
-
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const app = express();
-const port = process.env.PORT || 8091;
+const PORT = process.env.HR_PORT || 8091;
 
-app.use(cors({
-  origin: ['http://localhost:3003', 'http://localhost:5173'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
-app.use(express.json());
+app.use(helmet());
+app.use(cors());
+app.use(express.json({ limit: '50mb' })); // Para fotos grandes
 
-// Inicializar repositorios
-const driverRepo = new PostgresDriverRepository();
+app.use('/api/v1/drivers', driverRoutes);
 
-// Conectar a NATS
-const natsUrl = process.env.NATS_URL || 'nats://localhost:4222';
-const natsPublisher = new NatsPublisher();
-natsPublisher.connect(natsUrl);
-
-// UseCases
-const createDriverUC = new CreateDriverUseCase(driverRepo, natsPublisher);
-const listDriversUC = new ListDriversUseCase(driverRepo);
-const updateDriverUC = new UpdateDriverUseCase(driverRepo, natsPublisher);
-const assignBusUC = new AssignBusUseCase(driverRepo, natsPublisher);
-
-// Handlers
-const handlers = new Handlers(
-  createDriverUC,
-  listDriversUC,
-  updateDriverUC,
-  assignBusUC
-);
-
-// Rutas
-app.get('/health', handlers.healthCheck);
-app.post('/api/v1/drivers', authenticate, adminOnly, handlers.createDriver);
-app.get('/api/v1/drivers', authenticate, handlers.listDrivers);
-app.put('/api/v1/drivers/:id', authenticate, adminOnly, handlers.updateDriver);
-app.post('/api/v1/drivers/:driverId/assign-bus', authenticate, adminOnly, handlers.assignBus);
-
-app.listen(port, () => {
-  console.log(`🚀 Módulo 10 - HR Conductores corriendo en puerto ${port}`);
-  console.log(`📊 Health check: http://localhost:${port}/health`);
-  console.log(`🔐 Autenticación JWT activada`);
-  console.log(`👑 Rutas ADMIN protegidas`);
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'M10-HR-Conductores' });
 });
 
-process.on('SIGINT', async () => {
-  console.log('🛑 Apagando HR Conductores...');
-  await natsPublisher.close();
-  process.exit(0);
+app.listen(PORT, () => {
+  console.log(`🚀 M10 - HR Conductores corriendo en http://localhost:${PORT}`);
 });
