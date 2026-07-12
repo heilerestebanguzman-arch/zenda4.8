@@ -1,35 +1,31 @@
 import { Pool } from 'pg';
-import { createClient } from 'redis';
-import { connect } from 'nats';
 import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
-// PostgreSQL
-export const pool = new Pool({
+console.log('📊 Conectando a PostgreSQL...');
+console.log('   Host:', process.env.DB_HOST || 'localhost');
+console.log('   Puerto:', process.env.DB_PORT || '5432');
+
+const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
   user: process.env.DB_USER || 'zenda_admin',
   password: process.env.DB_PASSWORD || 'zenda_secure_pass_2026',
   database: process.env.DB_NAME || 'zenda',
+  max: 50,                    // ✅ Aumentado de 20 a 50
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
 
-// Redis
-export const redis = createClient({
-  url: `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || '6379'}`,
+pool.on('connect', () => {
+  console.log('✅ PostgreSQL connected successfully');
 });
 
-redis.on('error', (err) => console.error('Redis Client Error', err));
+pool.on('error', (err) => {
+  console.error('❌ PostgreSQL connection error:', err);
+});
 
-// NATS
-let natsConnection: any = null;
-
-export const getNatsConnection = async () => {
-  if (!natsConnection) {
-    natsConnection = await connect({
-      servers: process.env.NATS_URL || 'nats://localhost:4222',
-    });
-    console.log('✅ Connected to NATS');
-  }
-  return natsConnection;
-};
+export { pool };
+export default pool;

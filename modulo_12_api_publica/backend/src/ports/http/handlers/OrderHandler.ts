@@ -1,27 +1,25 @@
 import { Request, Response } from 'express';
 import { publishOrderCreated } from '../../../nats/publisher';
 
+const orderStatusStore: Record<string, any> = {};
+
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
   try {
-    console.log('📥 [M12] Recibida solicitud de orden');
-    console.log('📦 Datos:', req.body);
-    
     const orderData = req.body;
     
-    // Validar datos básicos
     if (!orderData.vehicle_id || !orderData.type || !orderData.description) {
-      console.log('❌ Validación fallida');
-      res.status(400).json({ error: 'Faltan campos requeridos: vehicle_id, type, description' });
+      res.status(400).json({ error: 'Faltan campos requeridos' });
       return;
     }
 
-    console.log('✅ Validación exitosa');
-    console.log('📤 Publicando en NATS...');
-    
-    // Publicar evento en NATS
     const result = await publishOrderCreated(orderData);
     
-    console.log('✅ Publicación exitosa:', result);
+    orderStatusStore[result.request_id] = {
+      status: 'PENDING',
+      message: 'Orden recibida',
+      created_at: new Date().toISOString(),
+      order_data: orderData
+    };
     
     res.status(202).json({
       status: 'accepted',
@@ -39,12 +37,45 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 export const getOrderStatus = async (req: Request, res: Response): Promise<void> => {
   try {
     const { requestId } = req.params;
-    res.json({ 
-      status: 'processing', 
-      requestId,
-      message: 'Estado de la orden en procesamiento'
+    const orderStatus = orderStatusStore[requestId];
+    
+    if (!orderStatus) {
+      res.status(404).json({ error: 'Orden no encontrada' });
+      return;
+    }
+    
+    res.json({
+      status: 'ok',
+      data: {
+        request_id: requestId,
+        order_status: orderStatus.status,
+        message: orderStatus.message,
+        created_at: orderStatus.created_at,
+        completed_at: orderStatus.completed_at || null,
+        order_data: orderStatus.order_data
+      }
     });
   } catch (error) {
-    res.status(500).json({ error: 'Error al obtener estado' });
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+export const listOrders = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const orders = Object.keys(orderStatusStore).map((requestId) => ({
+      request_id: requestId,
+      status: orderStatusStore[requestId].status,
+      message: orderStatusStore[requestId].message,
+      created_at: orderStatusStore[requestId].created_at,
+      completed_at: orderStatusStore[requestId].completed_at || null,
+      order_data: orderStatusStore[requestId].order_data
+    }));
+    
+    res.json({
+      status: 'ok',
+      data: orders
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

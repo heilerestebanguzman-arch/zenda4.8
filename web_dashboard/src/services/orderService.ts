@@ -1,36 +1,21 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8093/api/v1';
+import api from './api';
 
 export const orderService = {
   // Obtener todas las órdenes
-  async getOrders(token: string) {
-    const response = await fetch(`${API_URL}/orders`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    return response.json();
+  async getOrders() {
+    const response = await api.get('/api/v1/orders');
+    return response.data;
   },
 
   // Crear una nueva orden
-  async createOrder(token: string, orderData: any) {
-    const response = await fetch(`${API_URL}/orders`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(orderData),
-    });
-    return response.json();
+  async createOrder(orderData: any) {
+    const response = await api.post('/api/v1/orders', orderData);
+    return response.data;
   },
 
   // Obtener estado de una orden
-  async getOrderStatus(token: string, orderId: string) {
-    const response = await fetch(`${API_URL}/orders/${orderId}/status`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    return response.json();
+  async getOrderStatus(requestId: string) {
+    const response = await api.get(`/api/v1/orders/status/${requestId}`);
+    return response.data;
   },
 };
