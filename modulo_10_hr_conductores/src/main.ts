@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
 import driverRoutes from './routes/driverRoutes';
@@ -10,13 +9,15 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 const app = express();
 const PORT = process.env.HR_PORT || 8091;
 
-app.use(helmet());
+// Middlewares
 app.use(cors());
-app.use(express.json({ limit: '50mb' })); // Para fotos grandes
+app.use(express.json({ limit: '50mb' }));
 
+// Rutas
 app.use('/api/v1/drivers', driverRoutes);
 
-app.get('/health', (req, res) => {
+// Health check
+app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'M10-HR-Conductores' });
 });
 
