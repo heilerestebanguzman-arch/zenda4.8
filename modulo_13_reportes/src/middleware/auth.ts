@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-// Usar el mismo secret que M2 (fijo para evitar problemas de carga)
 const JWT_SECRET = 'nuevo_jwt_secret_muy_largo_y_seguro_2026';
 
 export const authenticateJWT = (req: Request, res: Response, next: NextFunction): void => {
@@ -13,10 +12,18 @@ export const authenticateJWT = (req: Request, res: Response, next: NextFunction)
 
   const token = authHeader.split(' ')[1];
   try {
-    console.log('🔑 [M13] Verificando token con secret fijo');
+    console.log('🔑 [M13] Verificando token');
     const decoded = jwt.verify(token, JWT_SECRET);
     console.log('✅ [M13] Token verificado correctamente');
+    
+    // Guardar usuario en request
     (req as any).user = decoded;
+    
+    // Extraer tenant del header o usar 'default'
+    const tenant = req.headers['x-tenant-id'] as string || 'default';
+    (req as any).tenantId = tenant;
+    console.log(`🏢 [M13] Tenant: ${tenant}`);
+    
     next();
   } catch (error: any) {
     console.error('❌ [M13] Error:', error.message || 'Error desconocido');

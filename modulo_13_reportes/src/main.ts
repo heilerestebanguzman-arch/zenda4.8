@@ -3,11 +3,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
+import reportRoutes from './controllers/reportController';
 import { pool } from './config/database';
 import { redisClient } from './config/redis';
-import reportRoutes from './controllers/reportController';
 
-// ✅ Cargar .env desde la raíz
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 console.log('🔑 [M13] JWT_SECRET cargado:', process.env.JWT_SECRET ? '✅ Sí' : '❌ No');
