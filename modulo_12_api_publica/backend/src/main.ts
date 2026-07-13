@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
 import routes from './ports/http/routes';
+import { identifyTenant } from './middleware/tenant';
 
 // Cargar .env
 dotenv.config({ path: path.join(__dirname, '../../.env') });
@@ -17,6 +18,9 @@ const PORT = process.env.PORT || 8093;
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+
+// ✅ Middleware para identificar tenant
+app.use(identifyTenant);
 
 // Rutas
 app.use('/api/v1', routes);
