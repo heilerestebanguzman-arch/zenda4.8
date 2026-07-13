@@ -26,6 +26,7 @@
     "nats": "^2.15.1",
     "pg": "^8.11.3",
     "redis": "^4.6.5",
+    "socket.io": "^4.8.3",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^14.0.1",

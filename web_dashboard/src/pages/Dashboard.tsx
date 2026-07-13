@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { orderService } from '../services/orderService';
 import { StatusBadge } from '../components/ui/StatusBadge';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 interface Order {
   request_id: string;
@@ -14,6 +15,7 @@ interface Order {
 export default function Dashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const { messages } = useWebSocket('http://localhost:8093');
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -31,6 +33,16 @@ export default function Dashboard() {
     fetchOrders();
   }, []);
 
+  // Actualizar órdenes cuando llega un nuevo mensaje WebSocket
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.data) {
+        setOrders((prev) => [lastMessage.data, ...prev]);
+      }
+    }
+  }, [messages]);
+
   if (loading) {
     return <div className="flex justify-center items-center h-64">Cargando...</div>;
   }
@@ -46,21 +58,21 @@ export default function Dashboard() {
       
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 shadow-sm">
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 shadow-sm">
           <h3 className="text-sm font-medium text-blue-700">Total Órdenes</h3>
-          <p className="text-3xl font-bold text-blue-700">{total}</p>
+          <p className="text-2xl font-bold text-blue-700">{total}</p>
         </div>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 shadow-sm">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 shadow-sm">
           <h3 className="text-sm font-medium text-yellow-700">Pendientes</h3>
-          <p className="text-3xl font-bold text-yellow-700">{pending}</p>
+          <p className="text-2xl font-bold text-yellow-700">{pending}</p>
         </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 shadow-sm">
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 shadow-sm">
           <h3 className="text-sm font-medium text-blue-700">En Progreso</h3>
-          <p className="text-3xl font-bold text-blue-700">{inProgress}</p>
+          <p className="text-2xl font-bold text-blue-700">{inProgress}</p>
         </div>
-        <div className="bg-green-50 border border-green-200 rounded-xl p-6 shadow-sm">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 shadow-sm">
           <h3 className="text-sm font-medium text-green-700">Completadas</h3>
-          <p className="text-3xl font-bold text-green-700">{completed}</p>
+          <p className="text-2xl font-bold text-green-700">{completed}</p>
         </div>
       </div>
 
