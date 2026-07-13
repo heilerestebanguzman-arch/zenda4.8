@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { orderService } from '../services/orderService';
+import { reportService } from '../services/reportService';
 import { StatusBadge } from '../components/ui/StatusBadge';
-import { useWebSocket } from '../hooks/useWebSocket';
 
 interface Order {
   request_id: string;
@@ -15,36 +15,54 @@ interface Order {
 export default function Dashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const { messages } = useWebSocket('http://localhost:8093');
+  const [summary, setSummary] = useState<any>(null);
+  const [ordersByStatus, setOrdersByStatus] = useState<any[]>([]);
+  const [monthlyRevenue, setMonthlyRevenue] = useState<any[]>([]);
+  const [mttr, setMttr] = useState<any>(null);
 
   useEffect(() => {
-    const fetchOrders = async () => {
+    const fetchData = async () => {
       try {
-        const response = await orderService.getOrders();
-        if (response.status === 'ok' && response.data) {
-          setOrders(response.data);
+        // 1. Obtener órdenes
+        const ordersResponse = await orderService.getOrders();
+        if (ordersResponse.status === 'ok' && ordersResponse.data) {
+          setOrders(ordersResponse.data);
+        }
+
+        // 2. Obtener resumen
+        const summaryResponse = await reportService.getSummary();
+        if (summaryResponse.status === 'ok') {
+          setSummary(summaryResponse.data);
+        }
+
+        // 3. Obtener órdenes por estado
+        const statusResponse = await reportService.getOrdersByStatus();
+        if (statusResponse.status === 'ok') {
+          setOrdersByStatus(statusResponse.data);
+        }
+
+        // 4. Obtener ingresos mensuales
+        const revenueResponse = await reportService.getMonthlyRevenue(6);
+        if (revenueResponse.status === 'ok') {
+          setMonthlyRevenue(revenueResponse.data);
+        }
+
+        // 5. Obtener MTTR
+        const mttrResponse = await reportService.getMTTR();
+        if (mttrResponse.status === 'ok') {
+          setMttr(mttrResponse.data);
         }
       } catch (error) {
-        console.error('Error:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchOrders();
+    fetchData();
   }, []);
 
-  // Actualizar órdenes cuando llega un nuevo mensaje WebSocket
-  useEffect(() => {
-    if (messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage.data) {
-        setOrders((prev) => [lastMessage.data, ...prev]);
-      }
-    }
-  }, [messages]);
-
   if (loading) {
-    return <div className="flex justify-center items-center h-64">Cargando...</div>;
+    return <div className="flex justify-center items-center h-64">Cargando datos...</div>;
   }
 
   const total = orders.length;
@@ -60,23 +78,45 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 shadow-sm">
           <h3 className="text-sm font-medium text-blue-700">Total Órdenes</h3>
-          <p className="text-2xl font-bold text-blue-700">{total}</p>
+          <p className="text-2xl font-bold text-blue-700">{summary?.total_orders || total}</p>
         </div>
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 shadow-sm">
           <h3 className="text-sm font-medium text-yellow-700">Pendientes</h3>
-          <p className="text-2xl font-bold text-yellow-700">{pending}</p>
+          <p className="text-2xl font-bold text-yellow-700">{summary?.pending_orders || pending}</p>
         </div>
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 shadow-sm">
           <h3 className="text-sm font-medium text-blue-700">En Progreso</h3>
-          <p className="text-2xl font-bold text-blue-700">{inProgress}</p>
+          <p className="text-2xl font-bold text-blue-700">{summary?.in_progress_orders || inProgress}</p>
         </div>
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 shadow-sm">
           <h3 className="text-sm font-medium text-green-700">Completadas</h3>
-          <p className="text-2xl font-bold text-green-700">{completed}</p>
+          <p className="text-2xl font-bold text-green-700">{summary?.completed_orders || completed}</p>
         </div>
       </div>
 
-      {/* Tabla */}
+      {/* Métricas Adicionales */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 shadow-sm">
+          <h3 className="text-sm font-medium text-purple-700">Ingresos Totales</h3>
+          <p className="text-2xl font-bold text-purple-700">
+            ${summary?.total_revenue?.toFixed(2) || '0.00'}
+          </p>
+        </div>
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 shadow-sm">
+          <h3 className="text-sm font-medium text-indigo-700">Tiempo de Respuesta (MTTR)</h3>
+          <p className="text-2xl font-bold text-indigo-700">
+            {mttr?.avg_seconds ? `${Math.round(mttr.avg_seconds)}s` : 'N/A'}
+          </p>
+        </div>
+        <div className="bg-pink-50 border border-pink-200 rounded-xl p-4 shadow-sm">
+          <h3 className="text-sm font-medium text-pink-700">Órdenes por Estado</h3>
+          <p className="text-2xl font-bold text-pink-700">
+            {ordersByStatus.length > 0 ? ordersByStatus.length : 0}
+          </p>
+        </div>
+      </div>
+
+      {/* Tabla de órdenes */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">

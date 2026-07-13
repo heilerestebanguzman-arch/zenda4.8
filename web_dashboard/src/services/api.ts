@@ -1,59 +1,55 @@
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
-// URL fija para M12
-const API_URL = 'http://localhost:8093';
+// 🔹 M12 - API Pública (Órdenes)
+const API_ORDERS_URL = 'http://localhost:8093';
 
-console.log('🔍 [API] Configurando API con URL:', API_URL);
+// 🔹 M13 - Reportes
+const API_REPORTS_URL = 'http://localhost:8094';
 
-const api = axios.create({
-  baseURL: API_URL,
+console.log('🔍 [API] URLs configuradas:');
+console.log('   📦 Órdenes:', API_ORDERS_URL);
+console.log('   📊 Reportes:', API_REPORTS_URL);
+
+// Cliente para órdenes (M12)
+export const ordersApi = axios.create({
+  baseURL: API_ORDERS_URL,
   timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
 });
 
-// Interceptor para agregar el token JWT
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-      console.log('🔑 [API] Token agregado a la petición');
-    } else {
-      console.log('⚠️ [API] No hay token disponible');
-    }
-    return config;
-  },
-  (error) => {
-    console.error('❌ [API] Error en request interceptor:', error);
-    return Promise.reject(error);
-  }
-);
+// Cliente para reportes (M13)
+export const reportsApi = axios.create({
+  baseURL: API_REPORTS_URL,
+  timeout: 10000,
+  headers: { 'Content-Type': 'application/json' },
+});
 
-// Interceptor para manejar errores
-api.interceptors.response.use(
-  (response) => {
-    console.log('✅ [API] Respuesta exitosa:', response.status);
-    return response;
-  },
-  (error) => {
-    console.error('❌ [API] Error en respuesta:', error);
-    if (error.code === 'ERR_NETWORK') {
-      toast.error('No se puede conectar al servidor. Verifica que M12 esté corriendo.');
-    } else if (error.response?.status === 401) {
-      toast.error('Sesión expirada. Inicia sesión nuevamente.');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    } else if (error.response?.status === 403) {
-      toast.error('No tienes permisos para realizar esta acción.');
-    } else if (error.response?.status === 500) {
-      toast.error('Error interno del servidor. Intenta más tarde.');
-    }
-    return Promise.reject(error);
+// Interceptor común para agregar token
+const authInterceptor = (config: any) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+};
 
-export default api;
+ordersApi.interceptors.request.use(authInterceptor);
+reportsApi.interceptors.request.use(authInterceptor);
+
+// Interceptor común para errores
+const errorInterceptor = (error: any) => {
+  console.error('❌ [API] Error:', error);
+  if (error.response?.status === 401) {
+    toast.error('Sesión expirada. Inicia sesión nuevamente.');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  }
+  return Promise.reject(error);
+};
+
+ordersApi.interceptors.response.use((response) => response, errorInterceptor);
+reportsApi.interceptors.response.use((response) => response, errorInterceptor);
+
+export default ordersApi;
