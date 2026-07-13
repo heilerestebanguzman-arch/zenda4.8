@@ -7,6 +7,7 @@ import { createRoutes } from './adapters/http/routes';
 import { AuthController } from './adapters/http/controllers/AuthController';
 import { UserController } from './adapters/http/controllers/UserController';
 import { MFAController } from './adapters/http/controllers/MFAController';
+import { ProfileController } from './adapters/http/controllers/ProfileController';
 import { BcryptHashService } from './adapters/hash/BcryptHashService';
 import { TokenService } from './adapters/jwt/TokenService';
 import { TokenRepository } from './infrastructure/redis/TokenRepository';
@@ -16,7 +17,6 @@ import { RefreshToken } from './core/use-cases/RefreshToken';
 import { logger } from './infrastructure/logger';
 import { seedAdmin } from './seed';
 
-// Cargar .env desde la raíz del proyecto
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const app = express();
@@ -26,11 +26,15 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
+// Repositorios
 const userRepository = new UserRepository();
 const tokenRepository = new TokenRepository();
+
+// Servicios
 const hashService = new BcryptHashService();
 const tokenService = new TokenService();
 
+// Casos de uso
 const authenticateUser = new AuthenticateUser(
   userRepository,
   hashService,
@@ -43,11 +47,14 @@ const refreshToken = new RefreshToken(
   tokenRepository
 );
 
+// Controladores
 const authController = new AuthController(authenticateUser, refreshToken);
 const userController = new UserController();
 const mfaController = new MFAController();
+const profileController = new ProfileController();
 
-app.use('/api/v1/auth', createRoutes(authController, userController, mfaController));
+// Rutas
+app.use('/api/v1', createRoutes(authController, userController, mfaController, profileController));
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'M2-Usuarios', timestamp: new Date().toISOString() });
