@@ -1,0 +1,46 @@
+{
+  "app": {
+    "name": "ZENDA 4.8",
+    "description": "Multimodal Transport System"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "orders": "Orders",
+    "drivers": "Drivers",
+    "reports": "Reports",
+    "profile": "Profile",
+    "logout": "Logout"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "total": "Total",
+    "pending": "Pending",
+    "completed": "Completed"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "total_orders": "Total Orders",
+    "pending_orders": "Pending",
+    "completed_orders": "Completed",
+    "total_revenue": "Total Revenue"
+  },
+  "drivers": {
+    "list": "Drivers List",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "license": "License",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "suspended": "Suspended",
+    "total": "Total: {{count}}",
+    "none": "No drivers registered"
+  }
+}
