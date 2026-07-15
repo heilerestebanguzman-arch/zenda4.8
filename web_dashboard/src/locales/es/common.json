@@ -1,0 +1,46 @@
+{
+  "app": {
+    "name": "ZENDA 4.8",
+    "description": "Sistema de Transporte Multimodal"
+  },
+  "nav": {
+    "dashboard": "Panel de Control",
+    "orders": "Órdenes",
+    "drivers": "Conductores",
+    "reports": "Reportes",
+    "profile": "Perfil",
+    "logout": "Cerrar sesión"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "total": "Total",
+    "pending": "Pendientes",
+    "completed": "Completadas"
+  },
+  "dashboard": {
+    "title": "Panel de Control",
+    "total_orders": "Total Órdenes",
+    "pending_orders": "Pendientes",
+    "completed_orders": "Completadas",
+    "total_revenue": "Ingresos Totales"
+  },
+  "drivers": {
+    "list": "Lista de Conductores",
+    "name": "Nombre",
+    "email": "Email",
+    "phone": "Teléfono",
+    "license": "Licencia",
+    "status": "Estado",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "suspended": "Suspendido",
+    "total": "Total: {{count}}",
+    "none": "No hay conductores registrados"
+  }
+}
