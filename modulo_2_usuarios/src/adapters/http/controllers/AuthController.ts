@@ -3,6 +3,9 @@ import { AuthenticateUser } from '../../../core/use-cases/AuthenticateUser';
 import { RefreshToken } from '../../../core/use-cases/RefreshToken';
 import jwt from 'jsonwebtoken';
 
+// Simulación de almacenamiento de 2FA (en producción usar PostgreSQL)
+const mfaStore = new Map<string, { secret: string, enabled: boolean }>();
+
 export class AuthController {
   constructor(
     private authenticateUser: AuthenticateUser,
@@ -12,38 +15,59 @@ export class AuthController {
   async login(req: Request, res: Response): Promise<Response> {
     try {
       console.log('📥 [AuthController] Login iniciado');
-      console.log('📦 Body:', req.body);
-      
-      const { email, password } = req.body;
-      
+      const { email, password, mfaCode } = req.body;
+
       if (!email || !password) {
-        console.log('❌ Email o password faltante');
         return res.status(400).json({ error: 'Email y password son requeridos' });
       }
-      
-      console.log(`🔍 Buscando usuario: ${email}`);
+
+      // 1. Autenticar usuario
       const result = await this.authenticateUser.execute(email, password);
-      
       if (!result) {
-        console.log('❌ Credenciales inválidas');
         return res.status(401).json({ error: 'Credenciales inválidas' });
       }
-      
-      console.log('✅ Login exitoso para:', email);
+
+      // 2. Verificar 2FA si está activado
+      const mfaData = mfaStore.get(email);
+      if (mfaData?.enabled) {
+        console.log(`🔐 [Auth] 2FA activado para: ${email}`);
+
+        if (!mfaCode) {
+          return res.status(401).json({
+            error: 'Código 2FA requerido',
+            requiresMFA: true,
+            message: 'Ingresa el código de autenticación de dos factores'
+          });
+        }
+
+        // Verificar código 2FA
+        const speakeasy = require('speakeasy');
+        const isValid = speakeasy.totp.verify({
+          secret: mfaData.secret,
+          encoding: 'base32',
+          token: mfaCode,
+          window: 1,
+        });
+
+        if (!isValid) {
+          return res.status(401).json({ error: 'Código 2FA inválido' });
+        }
+
+        console.log(`✅ [Auth] 2FA verificado para: ${email}`);
+      }
+
+      // 3. Generar tokens
       return res.json({
         status: 'ok',
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
         expiresIn: result.expiresIn,
-        user: result.user
+        user: result.user,
+        mfaEnabled: mfaData?.enabled || false
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('❌ Error en login:', error);
-      console.error('📚 Stack:', error.stack);
-      return res.status(500).json({ 
-        error: 'Error interno del servidor',
-        details: error.message 
-      });
+      return res.status(500).json({ error: 'Error interno del servidor' });
     }
   }
 

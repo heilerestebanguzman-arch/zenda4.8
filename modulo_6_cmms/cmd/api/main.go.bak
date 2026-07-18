@@ -49,9 +49,6 @@ func main() {
     // Ruta para crear órdenes
     router.POST("/api/v1/orders", orderHandler.CreateOrder)
 
-    // Ruta para listar órdenes
-    router.GET("/api/v1/orders", orderHandler.ListOrders)
-
     // Suscripción a eventos NATS
     go func() {
         _, err := nc.Subscribe("order.created", func(msg *nats.Msg) {

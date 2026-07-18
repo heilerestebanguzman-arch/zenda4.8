@@ -25,8 +25,11 @@ export const createRoutes = (
   router.delete('/users/:id', userController.delete.bind(userController));
 
   // MFA routes
-  router.post('/mfa/setup', mfaController.setup.bind(mfaController));
+  router.post('/mfa/setup', authController.authenticate.bind(authController), mfaController.setup.bind(mfaController));
   router.post('/mfa/verify', mfaController.verify.bind(mfaController));
+  router.post('/mfa/login-verify', mfaController.verifyLogin.bind(mfaController));
+  router.post('/mfa/disable', authController.authenticate.bind(authController), mfaController.disable.bind(mfaController));
+  router.get('/mfa/status', authController.authenticate.bind(authController), mfaController.status.bind(mfaController));
 
   // Profile routes
   router.get('/profile', authController.authenticate.bind(authController), profileController.getProfile.bind(profileController));

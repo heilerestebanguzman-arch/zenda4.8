@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { driverService, Driver } from '../services/driverService';
 
-export const DriversList: React.FC = () => {
+const DriversList: React.FC = () => {
   const { t } = useTranslation();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,3 +110,4 @@ export const DriversList: React.FC = () => {
     </div>
   );
 };
+export default DriversList;

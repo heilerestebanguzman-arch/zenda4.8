@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import http from 'http';
 import { connect } from 'nats';
-import routes from './ports/http/routes';
+import routes from './routes';
 import { identifyTenant } from './middleware/tenant';
 import { setupWebSocket } from './websocket/server';
 

@@ -7,7 +7,7 @@ const languages = [
   { code: 'pt', label: '🇧🇷 Português' }
 ];
 
-export const LanguageSelector: React.FC = () => {
+const LanguageSelector: React.FC = () => {
   const { i18n } = useTranslation();
   const currentLang = i18n.language;
 
@@ -30,3 +30,4 @@ export const LanguageSelector: React.FC = () => {
     </select>
   );
 };
+export default LanguageSelector;

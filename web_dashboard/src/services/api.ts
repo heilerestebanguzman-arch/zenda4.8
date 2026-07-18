@@ -9,9 +9,16 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken');
+  console.log('🔐 [Interceptor] Token obtenido:', token ? token.substring(0, 20) + '...' : 'null');
+  
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+    console.log('✅ [Interceptor] Token agregado al header');
+  } else {
+    console.log('❌ [Interceptor] No se encontró token');
   }
+  
+  console.log('📤 [Interceptor] Headers finales:', config.headers);
   return config;
 });
 
