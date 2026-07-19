@@ -8,6 +8,7 @@ import { PrivateRoute } from './components/shared/PrivateRoute';
 
 // Carga perezosa del Dashboard
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Routes = lazy(() => import('./pages/Routes'));
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
             <Route element={<PrivateRoute />}>
               <Route element={<DashboardLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
+<Route path="/routes" element={<Routes />} />
                 <Route path="/" element={<Navigate to="/dashboard" />} />
               </Route>
             </Route>

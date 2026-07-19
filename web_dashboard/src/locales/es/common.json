@@ -30,6 +30,9 @@
     "completed_orders": "Completadas",
     "total_revenue": "Ingresos Totales"
   },
+  "routes": {
+    "title": "Gestión de Rutas"
+  },
   "drivers": {
     "list": "Lista de Conductores",
     "name": "Nombre",

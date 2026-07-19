@@ -3,7 +3,6 @@ import { authenticateJWT } from '../middleware/auth';
 import { orderController } from '../controllers/orderController';
 import { reportController } from '../controllers/reportController';
 import { driverController } from '../controllers/driverController';
-import { routeController } from '../controllers/routeController';
 
 const router = Router();
 
@@ -25,13 +24,6 @@ router.get('/reports/orders-by-status', authenticateJWT, reportController.getOrd
 router.get('/reports/top-drivers', authenticateJWT, reportController.getTopDrivers);
 router.get('/reports/monthly-revenue', authenticateJWT, reportController.getMonthlyRevenue);
 router.get('/reports/mttr', authenticateJWT, reportController.getMTTR);
-
-// ==================== RUTAS ====================
-router.get('/routes', authenticateJWT, routeController.getRoutes);
-router.post('/routes', authenticateJWT, routeController.createRoute);
-router.get('/routes/:id', authenticateJWT, routeController.getRouteById);
-router.put('/routes/:id', authenticateJWT, routeController.updateRoute);
-router.delete('/routes/:id', authenticateJWT, routeController.deleteRoute);
 
 // ==================== CONDUCTORES ====================
 router.get('/drivers', authenticateJWT, driverController.getDrivers);
