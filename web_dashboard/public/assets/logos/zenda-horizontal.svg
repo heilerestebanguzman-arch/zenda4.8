@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 35">
+  <defs>
+    <linearGradient id="zendaHorizGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1A3C6E;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2B5A9E;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect x="0" y="2" width="30" height="30" rx="6" fill="url(#zendaHorizGrad)"/>
+  <text x="15" y="23" font-family="Poppins, sans-serif" font-size="18" font-weight="bold" fill="white" text-anchor="middle">Z</text>
+  <text x="38" y="21" font-family="Poppins, sans-serif" font-size="18" font-weight="700" fill="#1A3C6E">ZENDA</text>
+  <text x="38" y="32" font-family="Inter, sans-serif" font-size="8" font-weight="400" fill="#6B7280" letter-spacing="1.5">TRANSPORT</text>
+</svg>

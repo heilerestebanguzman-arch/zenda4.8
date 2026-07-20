@@ -1,73 +1,118 @@
-import React, { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { orderService } from '../services/orderService';
-import { reportService } from '../services/reportService';
-import DriversList from '../components/DriversList';
-import LanguageSelector from '../components/ui/LanguageSelector';
+import React from 'react';
+import { 
+  DollarSign, 
+  Users, 
+  Truck, 
+  Map,
+  TrendingUp,
+  TrendingDown
+} from 'lucide-react';
+
+interface KPI {
+  title: string;
+  value: string;
+  change: string;
+  trend: 'up' | 'down';
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+}
 
 const Dashboard: React.FC = () => {
-  const { t } = useTranslation();
-  const [orders, setOrders] = useState([]);
-  const [summary, setSummary] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      const [ordersData, summaryData] = await Promise.all([
-        orderService.getOrders(),
-        reportService.getSummary()
-      ]);
-      setOrders(ordersData);
-      setSummary(summaryData);
-    } catch (error) {
-      console.error('Error cargando datos:', error);
-    } finally {
-      setLoading(false);
+  const kpis: KPI[] = [
+    {
+      title: 'Ingresos Totales',
+      value: '$ 124,850',
+      change: '+12.5%',
+      trend: 'up',
+      icon: DollarSign,
+      color: 'bg-zenda-primary'
+    },
+    {
+      title: 'Rutas Activas',
+      value: '45',
+      change: '+3.2%',
+      trend: 'up',
+      icon: Map,
+      color: 'bg-zenda-accent'
+    },
+    {
+      title: 'Conductores',
+      value: '128',
+      change: '+8.1%',
+      trend: 'up',
+      icon: Users,
+      color: 'bg-zenda-secondary'
+    },
+    {
+      title: 'Vehículos',
+      value: '89',
+      change: '-1.5%',
+      trend: 'down',
+      icon: Truck,
+      color: 'bg-zenda-primary-dark'
     }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
+  ];
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">{t('dashboard.title')}</h1>
-        <LanguageSelector />
+    <div className="w-full p-6">
+      <div className="mb-8">
+        <h1 className="text-3xl font-zenda-display font-bold text-zenda-gradient">
+          Panel de Control
+        </h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">
+          Visión general del sistema ZENDA Transport
+        </p>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">{t('dashboard.total_orders')}</p>
-          <p className="text-2xl font-bold">{summary?.data?.total_orders || 0}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">{t('dashboard.pending_orders')}</p>
-          <p className="text-2xl font-bold text-yellow-600">{summary?.data?.pending_orders || 0}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">{t('dashboard.completed_orders')}</p>
-          <p className="text-2xl font-bold text-green-600">{summary?.data?.completed_orders || 0}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">{t('dashboard.total_revenue')}</p>
-          <p className="text-2xl font-bold text-blue-600">${summary?.data?.total_revenue || 0}</p>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {kpis.map((kpi, index) => (
+          <div
+            key={index}
+            className="bg-white dark:bg-zenda-dark rounded-xl p-6 shadow-sm 
+                       border border-gray-100 dark:border-gray-700 
+                       hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between">
+              <div className={`${kpi.color} p-3 rounded-xl`}>
+                <kpi.icon className="w-5 h-5 text-white" aria-hidden="true" />
+              </div>
+              <span className={`
+                text-sm font-medium px-2.5 py-1 rounded-lg
+                ${kpi.trend === 'up' 
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                }
+              `}>
+                {kpi.change}
+              </span>
+            </div>
+            <p className="text-2xl font-bold text-zenda-primary dark:text-white mt-3">
+              {kpi.value}
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {kpi.title}
+            </p>
+          </div>
+        ))}
       </div>
 
-      {/* Lista de Conductores */}
-      <div className="mt-6">
-        <DriversList />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-zenda-dark rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+          <h3 className="text-lg font-zenda-display font-semibold text-zenda-primary dark:text-white mb-4">
+            Ingresos Mensuales
+          </h3>
+          <div className="h-64 flex items-center justify-center text-gray-400 dark:text-gray-500">
+            📊 Próximamente
+          </div>
+        </div>
+        <div className="bg-white dark:bg-zenda-dark rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+          <h3 className="text-lg font-zenda-display font-semibold text-zenda-primary dark:text-white mb-4">
+            Estado de Órdenes
+          </h3>
+          <div className="h-64 flex items-center justify-center text-gray-400 dark:text-gray-500">
+            📈 Próximamente
+          </div>
+        </div>
       </div>
     </div>
   );

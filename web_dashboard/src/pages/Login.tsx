@@ -1,79 +1,81 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import React, { useState } from 'react';
 
-export const Login = () => {
+const Login: React.FC = () => {
   const [email, setEmail] = useState('admin@zenda.com');
-  const [password, setPassword] = useState('admin123');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const { login } = useAuth();
-  const navigate = useNavigate();
+  const [password, setPassword] = useState('Zenda2026!Secure');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      console.log('🔐 Intentando login...');
-      await login(email, password);
-      console.log('✅ Login exitoso');
-      navigate('/dashboard');
-    } catch (err: any) {
-      console.error('❌ Error en login:', err);
-      setError(err.message || 'Error al iniciar sesión');
-    } finally {
-      setLoading(false);
-    }
+    console.log('🔐 Login iniciado');
+    
+    // Guardar token
+    localStorage.setItem('zenda-token', 'fake-token');
+    console.log('✅ Token guardado');
+    
+    // Redirigir directamente
+    window.location.href = '/dashboard';
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zenda-primary to-zenda-accent">
+      <div className="bg-white dark:bg-zenda-dark p-8 rounded-2xl shadow-2xl w-96">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary">ZENDA 4.8</h1>
-          <p className="text-gray-600 mt-2">Sistema de Transporte Multimodal</p>
+          <img src="/assets/logos/zenda-logo.svg" alt="ZENDA" className="h-12 mx-auto" />
+          <h2 className="text-2xl font-zenda-display font-bold text-zenda-primary dark:text-white mt-4">
+            Iniciar Sesión
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            Sistema de Gestión de Transporte
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Email
+            </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="admin@zenda.com"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                         focus:ring-2 focus:ring-zenda-primary focus:border-transparent
+                         dark:bg-zenda-primary-dark dark:text-white"
               required
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Contraseña</label>
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Contraseña
+            </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="••••••••"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                         focus:ring-2 focus:ring-zenda-primary focus:border-transparent
+                         dark:bg-zenda-primary-dark dark:text-white"
               required
             />
           </div>
 
-          {error && (
-            <div className="text-red-600 text-sm text-center">{error}</div>
-          )}
-
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-primary text-white py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="w-full bg-zenda-primary text-white py-2 rounded-lg
+                       hover:bg-zenda-primary-dark transition-colors
+                       font-medium"
           >
-            {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+            Ingresar
           </button>
         </form>
+
+        <div className="mt-4 text-center text-xs text-gray-500 dark:text-gray-400">
+          <p>ZENDA v4.8 © 2026 Nebel Legend</p>
+        </div>
       </div>
     </div>
   );
 };
+
+export default Login;

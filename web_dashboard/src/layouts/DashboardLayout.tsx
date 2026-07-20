@@ -1,43 +1,26 @@
-import { Outlet, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import React, { useState } from 'react';
+import { Outlet } from 'react-router-dom';
+import Sidebar from '../components/Sidebar';
+import Header from '../components/Header';
 
-export const DashboardLayout = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+const DashboardLayout: React.FC = () => {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const sidebarWidth = sidebarCollapsed ? 64 : 256;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-primary">ZENDA 4.8</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                {user?.fullName || 'Usuario'}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="text-sm text-red-600 hover:text-red-800 transition-colors"
-              >
-                Cerrar sesión
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Contenido */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <Outlet />
-      </main>
+    <div className="min-h-screen flex bg-gray-50 dark:bg-zenda-dark">
+      <Sidebar onCollapse={setSidebarCollapsed} />
+      <div 
+        className="flex-1 transition-all duration-300"
+        style={{ marginLeft: sidebarWidth }}
+      >
+        <Header />
+        <main className="flex-1 overflow-auto p-4">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 };
+
+export default DashboardLayout;
