@@ -1,17 +1,12 @@
 import { Request, Response } from 'express';
-import { DriverService } from '../services/DriverService';
+import { driverService } from '../services/DriverService';
 
 export class DriverController {
-  private driverService: DriverService;
-
-  constructor() {
-    this.driverService = new DriverService();
-  }
-
+  // Usar driverService sin instanciar (como módulo)
   async register(req: Request, res: Response): Promise<Response> {
     try {
       const driverData = req.body;
-      
+
       const requiredFields = ['full_name', 'email', 'phone', 'identification_number', 'license_number', 'license_expiry_date'];
       for (const field of requiredFields) {
         if (!driverData[field]) {
@@ -19,7 +14,7 @@ export class DriverController {
         }
       }
 
-      const driver = await this.driverService.register(driverData);
+      const driver = await driverService.register(driverData);
       return res.status(201).json({
         status: 'ok',
         message: 'Conductor registrado exitosamente',
@@ -31,14 +26,16 @@ export class DriverController {
     }
   }
 
-  async getAll(_req: Request, res: Response): Promise<Response> {
+  async getAll(req: Request, res: Response): Promise<Response> {
     try {
-      const drivers = await this.driverService.getAll();
+      const tenantId = req.headers['x-tenant-id'] as string || 'default';
+      const drivers = await driverService.getDrivers(tenantId);
       return res.json({
         status: 'ok',
         data: drivers
       });
     } catch (error: any) {
+      console.error('❌ Error en getAll:', error);
       return res.status(500).json({ error: 'Error al obtener conductores' });
     }
   }
@@ -46,7 +43,7 @@ export class DriverController {
   async getById(req: Request, res: Response): Promise<Response> {
     try {
       const { id } = req.params;
-      const driver = await this.driverService.getById(id);
+      const driver = await driverService.getById(id);
       if (!driver) {
         return res.status(404).json({ error: 'Conductor no encontrado' });
       }
@@ -55,6 +52,7 @@ export class DriverController {
         data: driver
       });
     } catch (error) {
+      console.error('❌ Error en getById:', error);
       return res.status(500).json({ error: 'Error al obtener conductor' });
     }
   }
@@ -63,13 +61,14 @@ export class DriverController {
     try {
       const { id } = req.params;
       const { status } = req.body;
-      const driver = await this.driverService.verify(id, status);
+      const driver = await driverService.verify(id, status);
       return res.json({
         status: 'ok',
         message: 'Estado de verificación actualizado',
         data: driver
       });
     } catch (error: any) {
+      console.error('❌ Error en verify:', error);
       return res.status(500).json({ error: error.message || 'Error al verificar conductor' });
     }
   }
@@ -78,18 +77,19 @@ export class DriverController {
     try {
       const { id } = req.params;
       const { selfie_photo } = req.body;
-      
+
       if (!selfie_photo) {
         return res.status(400).json({ error: 'Selfie photo is required' });
       }
 
-      const result = await this.driverService.facialVerify(id, selfie_photo);
+      const result = await driverService.facialVerify(id, selfie_photo);
       return res.json({
         status: 'ok',
         message: 'Verificación facial completada',
         data: result
       });
     } catch (error: any) {
+      console.error('❌ Error en facialVerify:', error);
       return res.status(500).json({ error: error.message || 'Error en verificación facial' });
     }
   }

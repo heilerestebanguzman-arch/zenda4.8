@@ -16,3 +16,21 @@ WORKDIR /root/
 COPY --from=builder /app/modulo_6_cmms .
 EXPOSE 8087
 CMD ["./modulo_6_cmms"]
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /cmms ./cmd/api/main.go
+
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates
+COPY --from=builder /cmms /cmms
+
+EXPOSE 8087
+
+CMD ["/cmms"]

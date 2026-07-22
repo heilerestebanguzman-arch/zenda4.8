@@ -1,120 +1,108 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
-	"log/slog"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	"github.com/zenda/modulo_1_flota/internal/infrastructure/auth"
-	"github.com/zenda/modulo_1_flota/internal/infrastructure/mqtt"
-	httpports "github.com/zenda/modulo_1_flota/internal/ports/http"
-	mqttports "github.com/zenda/modulo_1_flota/internal/ports/mqtt"
-	"github.com/zenda/modulo_1_flota/internal/ports"
-	"github.com/zenda/modulo_1_flota/internal/repository/postgres"
+    "database/sql"
+    "encoding/json"
+    "log"
+    "net/http"
+    _ "github.com/lib/pq"
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	metrics := ports.NewMetrics()
-	tokenValidator := auth.NewTokenValidator()
-	authMiddleware := auth.AuthMiddleware(tokenValidator)
+    connStr := "host=localhost port=5432 user=zenda_admin password=zenda_secure_pass_2026 dbname=zenda sslmode=disable"
+    db, err := sql.Open("postgres", connStr)
+    if err != nil {
+        log.Fatal("❌ Error conectando a PostgreSQL:", err)
+    }
+    defer db.Close()
 
-	dbCfg := postgres.Config{
-		Host:     getEnv("DB_HOST", "localhost"),
-		Port:     5432,
-		User:     getEnv("DB_USER", "zenda_admin"),
-		Password: getEnv("DB_PASSWORD", "zenda_secure_pass_2026"),
-		DBName:   getEnv("DB_NAME", "zenda"),
-		SSLMode:  "disable",
-	}
+    if err := db.Ping(); err != nil {
+        log.Fatal("❌ Error haciendo ping a PostgreSQL:", err)
+    }
+    log.Println("✅ Conectado a PostgreSQL exitosamente")
 
-	db, err := postgres.NewConnection(dbCfg, logger)
-	if err != nil {
-		logger.Error("Error al conectar a PostgreSQL", "error", err)
-		os.Exit(1)
-	}
-	defer postgres.Close(db, logger)
+    http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]string{
+            "status":  "OK",
+            "service": "modulo_1_flota",
+        })
+    })
 
-	busRepo := postgres.NewBusRepository(db, logger)
-	locationRepo := postgres.NewLocationRepository(db, logger)
+    http.HandleFunc("/api/v1/vehicles", func(w http.ResponseWriter, r *http.Request) {
+        if r.Method == "GET" {
+            rows, err := db.Query("SELECT id, plate, brand, model, year, color, status, type, capacity, mileage FROM tenant_default.vehicles")
+            if err != nil {
+                http.Error(w, err.Error(), http.StatusInternalServerError)
+                return
+            }
+            defer rows.Close()
 
-	// HTTP Handlers
-	busHandler := httpports.NewBusHandler(busRepo, metrics)
-	gpsHandler := mqttports.NewGPSHandler(locationRepo, metrics, logger)
+            var vehicles []map[string]interface{}
+            for rows.Next() {
+                var id, plate, brand, model, color, status, vehicleType string
+                var year, capacity, mileage int
 
-	// MQTT
-	mqttBroker := getEnv("MQTT_BROKER", "tcp://localhost:1883")
-	mqttClient := mqtt.NewClient(mqttBroker, logger, gpsHandler.Handle)
+                err := rows.Scan(&id, &plate, &brand, &model, &year, &color, &status, &vehicleType, &capacity, &mileage)
+                if err != nil {
+                    http.Error(w, err.Error(), http.StatusInternalServerError)
+                    return
+                }
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+                vehicles = append(vehicles, map[string]interface{}{
+                    "id":       id,
+                    "plate":    plate,
+                    "brand":    brand,
+                    "model":    model,
+                    "year":     year,
+                    "color":    color,
+                    "status":   status,
+                    "type":     vehicleType,
+                    "capacity": capacity,
+                    "mileage":  mileage,
+                })
+            }
 
-	if err := mqttClient.Connect(ctx); err != nil {
-		logger.Error("Error al conectar a MQTT", "error", err)
-		os.Exit(1)
-	}
-	defer mqttClient.Disconnect()
+            w.Header().Set("Content-Type", "application/json")
+            json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "data": vehicles})
+            return
+        }
 
-	if err := mqttClient.Subscribe("/gps/bus/+/position"); err != nil {
-		logger.Error("Error al suscribirse a MQTT", "error", err)
-		os.Exit(1)
-	}
+        if r.Method == "POST" {
+            var body struct {
+                Plate    string `json:"plate"`
+                Brand    string `json:"brand"`
+                Model    string `json:"model"`
+                Year     int    `json:"year"`
+                Color    string `json:"color"`
+                Type     string `json:"type"`
+                Capacity int    `json:"capacity"`
+            }
 
-	// HTTP Routes
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Módulo 1 - Flota OK"))
-	})
+            if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+                http.Error(w, "Datos inválidos", http.StatusBadRequest)
+                return
+            }
 
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-	})
+            query := `INSERT INTO tenant_default.vehicles (plate, brand, model, year, color, status, type, capacity) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
+            var id string
+            err := db.QueryRow(query, body.Plate, body.Brand, body.Model, body.Year, body.Color, "available", body.Type, body.Capacity).Scan(&id)
+            if err != nil {
+                http.Error(w, err.Error(), http.StatusInternalServerError)
+                return
+            }
 
-	http.Handle("/metrics", promhttp.Handler())
+            w.Header().Set("Content-Type", "application/json")
+            w.WriteHeader(http.StatusCreated)
+            json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "data": map[string]interface{}{"id": id, "plate": body.Plate, "brand": body.Brand, "model": body.Model, "year": body.Year, "color": body.Color, "status": "available", "type": body.Type, "capacity": body.Capacity}})
+            return
+        }
+        http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+    })
 
-	// Ruta protegida con autenticación
-	http.Handle("/api/v1/buses", authMiddleware(busHandler.CreateBus))
-
-	port := getEnv("PORT", "8081")
-	server := &http.Server{
-		Addr:         ":" + port,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-	}
-
-	go func() {
-		logger.Info("Servidor HTTP corriendo", "port", port)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("Error en servidor HTTP", "error", err)
-		}
-	}()
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	logger.Info("Apagando servidor...")
-
-	ctxShutdown, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelShutdown()
-
-	if err := server.Shutdown(ctxShutdown); err != nil {
-		logger.Error("Error al apagar servidor", "error", err)
-	}
-
-	logger.Info("Servidor apagado correctamente")
-}
-
-func getEnv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
+    port := "8081"
+    log.Printf("🚀 M1 - Flota corriendo en puerto %s", port)
+    log.Printf("📝 Health: http://localhost:%s/health", port)
+    log.Printf("📝 Vehicles: http://localhost:%s/api/v1/vehicles", port)
+    log.Fatal(http.ListenAndServe(":"+port, nil))
 }

@@ -1,10 +1,30 @@
 import { Request, Response } from 'express';
+import { redisClient } from '../config/redis';
 
 export const routeController = {
-  // Obtener todas las rutas
-  async getRoutes(_req: Request, res: Response) {
+  // Obtener todas las rutas (con caché)
+  async getRoutes(req: Request, res: Response) {
     try {
-      // Datos mock de rutas
+      const tenantId = (req.headers['x-tenant-id'] as string) || 'default';
+      const cacheKey = `routes:list:${tenantId}`;
+
+      // 1. Verificar caché
+      try {
+        if (redisClient.isReady) {
+          const cached = await redisClient.get(cacheKey);
+          if (cached) {
+            console.log('✅ Cache hit:', cacheKey);
+            const data = JSON.parse(cached);
+            return res.json({ status: 'ok', data });
+          }
+          console.log('⏳ Cache miss:', cacheKey);
+        }
+      } catch (error) {
+        console.warn('⚠️ Error reading cache:', error);
+      }
+
+      // 2. Datos mock (o consulta a BD)
+      console.log('📊 Ejecutando consulta para rutas...');
       const mockRoutes = [
         {
           id: 'route-001',
@@ -33,13 +53,22 @@ export const routeController = {
         }
       ];
 
-      res.json({
-        status: 'ok',
-        data: mockRoutes
-      });
+      // 3. Guardar en caché (TTL: 5 minutos)
+      try {
+        if (redisClient.isReady) {
+          await redisClient.set(cacheKey, JSON.stringify(mockRoutes), {
+            EX: 300,
+          });
+          console.log('✅ Cache saved:', cacheKey);
+        }
+      } catch (error) {
+        console.warn('⚠️ Error saving cache:', error);
+      }
+
+      return res.json({ status: 'ok', data: mockRoutes });
     } catch (error: any) {
       console.error('❌ Error en getRoutes:', error.message);
-      res.status(500).json({ error: 'Error al obtener rutas' });
+      return res.status(500).json({ error: 'Error al obtener rutas' });
     }
   },
 
@@ -47,28 +76,44 @@ export const routeController = {
   async createRoute(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.id;
+      const tenantId = (req.headers['x-tenant-id'] as string) || 'default';
 
-      res.status(201).json({
+      const newRoute = {
+        id: 'route-' + Date.now(),
+        ...req.body,
+        created_by: userId,
+        tenant_id: tenantId,
+        created_at: new Date().toISOString()
+      };
+
+      // Invalidar caché
+      const cacheKey = `routes:list:${tenantId}`;
+      try {
+        if (redisClient.isReady) {
+          await redisClient.del(cacheKey);
+          console.log('🗑️ Cache invalidated:', cacheKey);
+        }
+      } catch (error) {
+        console.warn('⚠️ Error invalidating cache:', error);
+      }
+
+      return res.status(201).json({
         status: 'ok',
         message: 'Ruta creada exitosamente',
-        data: {
-          ...req.body,
-          id: 'route-' + Date.now(),
-          created_by: userId,
-          created_at: new Date().toISOString()
-        }
+        data: newRoute
       });
     } catch (error: any) {
       console.error('❌ Error en createRoute:', error.message);
-      res.status(500).json({ error: 'Error al crear ruta' });
+      return res.status(500).json({ error: 'Error al crear ruta' });
     }
   },
 
   // Obtener una ruta por ID
   async getRouteById(req: Request, res: Response) {
     try {
+      const { id } = req.params;
       const mockRoute = {
-        id: req.params.id,
+        id: id,
         name: 'Línea A - Zona Norte',
         description: 'Conexión Norte-Centro',
         color: '#3498db',
@@ -81,44 +126,72 @@ export const routeController = {
         ]
       };
 
-      res.json({
+      return res.json({
         status: 'ok',
         data: mockRoute
       });
     } catch (error: any) {
       console.error(`❌ Error en getRouteById (${req.params.id}):`, error.message);
-      res.status(500).json({ error: 'Error al obtener la ruta' });
+      return res.status(500).json({ error: 'Error al obtener la ruta' });
     }
   },
 
   // Actualizar una ruta
   async updateRoute(req: Request, res: Response) {
     try {
+      const { id } = req.params;
       const userId = (req as any).user?.id;
+      const tenantId = (req.headers['x-tenant-id'] as string) || 'default';
 
-      res.json({
+      const updatedRoute = {
+        id: id,
+        ...req.body,
+        last_updated_by: userId,
+        updated_at: new Date().toISOString()
+      };
+
+      // Invalidar caché
+      const cacheKey = `routes:list:${tenantId}`;
+      try {
+        if (redisClient.isReady) {
+          await redisClient.del(cacheKey);
+          console.log('🗑️ Cache invalidated:', cacheKey);
+        }
+      } catch (error) {
+        console.warn('⚠️ Error invalidating cache:', error);
+      }
+
+      return res.json({
         status: 'ok',
         message: 'Ruta actualizada exitosamente',
-        data: {
-          ...req.body,
-          id: req.params.id,
-          last_updated_by: userId,
-          updated_at: new Date().toISOString()
-        }
+        data: updatedRoute
       });
     } catch (error: any) {
       console.error(`❌ Error en updateRoute (${req.params.id}):`, error.message);
-      res.status(500).json({ error: 'Error al actualizar la ruta' });
+      return res.status(500).json({ error: 'Error al actualizar la ruta' });
     }
   },
 
   // Eliminar una ruta
   async deleteRoute(req: Request, res: Response) {
     try {
-      res.status(204).send();
+      const tenantId = (req.headers['x-tenant-id'] as string) || 'default';
+
+      // Invalidar caché
+      const cacheKey = `routes:list:${tenantId}`;
+      try {
+        if (redisClient.isReady) {
+          await redisClient.del(cacheKey);
+          console.log('🗑️ Cache invalidated:', cacheKey);
+        }
+      } catch (error) {
+        console.warn('⚠️ Error invalidating cache:', error);
+      }
+
+      return res.status(204).send();
     } catch (error: any) {
-      console.error(`❌ Error en deleteRoute (${req.params.id}):`, error.message);
-      res.status(500).json({ error: 'Error al eliminar la ruta' });
+      console.error('❌ Error en deleteRoute:', error.message);
+      return res.status(500).json({ error: 'Error al eliminar la ruta' });
     }
   }
 };

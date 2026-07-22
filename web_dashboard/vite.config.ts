@@ -5,8 +5,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-  },
-  resolve: {
-    extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
-  },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8093',
+        changeOrigin: true,
+        rewrite: (path) => path
+      }
+    }
+  }
 })

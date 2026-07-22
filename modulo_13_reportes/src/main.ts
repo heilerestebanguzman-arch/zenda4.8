@@ -3,7 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
-import reportRoutes from './controllers/reportController';
+import { Router } from 'express';
+import { reportController } from './controllers/reportController';
 import { pool } from './config/database';
 import { redisClient } from './config/redis';
 
@@ -18,7 +19,11 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-app.use('/api/v1/reports', reportRoutes);
+// Crear router de reportes - SOLO LOS MÉTODOS QUE EXISTEN
+const reportRouter = Router();
+reportRouter.get('/summary', reportController.getSummary);
+
+app.use('/api/v1/reports', reportRouter);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'M13-Reportes' });
