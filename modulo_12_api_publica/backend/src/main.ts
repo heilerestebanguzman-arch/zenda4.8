@@ -474,6 +474,55 @@ app.post('/api/admin/audit', async (req, res) => {
     }
   }
 });
+// ============================================
+// PROXY PARA ANALÍTICA (M5)
+// ============================================
+
+app.get('/api/analytics/metrics', async (req, res) => {
+  try {
+    const url = `http://localhost:8086/api/v1/analytics/metrics`;
+    console.log(`🔄 GET Analytics Metrics: ${url}`);
+    
+    const response = await axios.get(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...req.headers
+      }
+    });
+    
+    res.status(response.status).json(response.data);
+  } catch (error: any) {
+    console.error('❌ Error GET Analytics Metrics:', error.message);
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(500).json({ error: 'Error al conectar con el servicio de analítica' });
+    }
+  }
+});
+
+app.get('/api/analytics/dashboard', async (req, res) => {
+  try {
+    const url = `http://localhost:8086/api/v1/analytics/dashboard`;
+    console.log(`🔄 GET Analytics Dashboard: ${url}`);
+    
+    const response = await axios.get(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...req.headers
+      }
+    });
+    
+    res.status(response.status).json(response.data);
+  } catch (error: any) {
+    console.error('❌ Error GET Analytics Dashboard:', error.message);
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(500).json({ error: 'Error al conectar con el servicio de analítica' });
+    }
+  }
+});
 
 // ============================================
 // 404
