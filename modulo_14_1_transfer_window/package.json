@@ -1,0 +1,26 @@
+{
+  "name": "zenda-transfer-window",
+  "version": "4.8.0",
+  "description": "Transfer Window Engine para transbordos",
+  "main": "dist/app.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn src/app.ts",
+    "build": "tsc",
+    "start": "node dist/app.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.0",
+    "express": "^4.18.2",
+    "pg": "^8.11.0",
+    "redis": "^4.6.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.17",
+    "@types/node": "^20.4.0",
+    "@types/redis": "^4.0.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.1.0"
+  }
+}
