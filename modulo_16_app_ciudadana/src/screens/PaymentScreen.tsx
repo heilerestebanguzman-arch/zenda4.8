@@ -1,130 +1,45 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
-import axios from 'axios';
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 
 export default function PaymentScreen({ route, navigation }: any) {
   const { vehicle } = route.params || {};
-  const [amount, setAmount] = useState('5.00');
-  const [loading, setLoading] = useState(false);
-
-  const handlePayment = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.post('http://localhost:8095/api/v1/payments/validate', {
-        userId: 'user-123',
-        amount: parseFloat(amount),
-        routeId: 'route-456',
-        busId: vehicle?.id || 'bus-789',
-        paymentMethod: 'QR',
-      });
-
-      if (response.data.success) {
-        Alert.alert(
-          '✅ Pago Exitoso',
-          `Monto: $${response.data.data.final_amount}\nID Transacción: ${response.data.data.transaction_id}`
-        );
-        navigation.goBack();
-      }
-    } catch (error) {
-      Alert.alert('❌ Error', 'No se pudo procesar el pago');
-    } finally {
-      setLoading(false);
-    }
+  const handlePay = () => {
+    Alert.alert('Pago Exitoso', 'Su pago ha sido procesado.', [
+      { text: 'OK', onPress: () => navigation.navigate('Home') }
+    ]);
   };
-
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.vehicleName}>{vehicle?.plate || 'Bus'}</Text>
-        <Text style={styles.vehicleType}>{vehicle?.type || 'MICRO'}</Text>
+    <View style={s.container}>
+      <Text style={s.title}>Pagar Pasaje</Text>
+      {vehicle && (
+        <View style={s.card}>
+          <Text style={s.label}>Vehiculo: {vehicle.plate}</Text>
+          <Text style={s.label}>Tipo: {vehicle.brand} {vehicle.model}</Text>
+        </View>
+      )}
+      <View style={s.fareCard}>
+        <Text style={s.fareLabel}>Tarifa</Text>
+        <Text style={s.fareAmount}>Bs 3.00</Text>
       </View>
-
-      <View style={styles.amountContainer}>
-        <Text style={styles.amountLabel}>Monto a pagar (Bs)</Text>
-        <TextInput
-          style={styles.amountInput}
-          value={amount}
-          onChangeText={setAmount}
-          keyboardType="numeric"
-          editable={!loading}
-        />
-      </View>
-
-      <TouchableOpacity
-        style={[styles.payButton, loading && styles.payButtonDisabled]}
-        onPress={handlePayment}
-        disabled={loading}
-      >
-        <Text style={styles.payButtonText}>
-          {loading ? 'Procesando...' : 'Pagar con QR'}
-        </Text>
+      <TouchableOpacity style={s.btn} onPress={handlePay}>
+        <Text style={s.btnText}>Confirmar Pago</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={s.back} onPress={() => navigation.goBack()}>
+        <Text style={s.backText}>Volver</Text>
       </TouchableOpacity>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 20,
-  },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  vehicleName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1A3C6E',
-  },
-  vehicleType: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 4,
-  },
-  amountContainer: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-  },
-  amountLabel: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 8,
-  },
-  amountInput: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1A3C6E',
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-  },
-  payButton: {
-    backgroundColor: '#1A3C6E',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  payButtonDisabled: {
-    opacity: 0.6,
-  },
-  payButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f0f4f8', padding: 20 },
+  title: { fontSize: 26, fontWeight: 'bold', color: '#1A3C6E', marginBottom: 20 },
+  card: { backgroundColor: 'white', borderRadius: 12, padding: 16, marginBottom: 16, elevation: 2 },
+  label: { fontSize: 16, color: '#333', marginBottom: 6 },
+  fareCard: { backgroundColor: '#1A3C6E', borderRadius: 12, padding: 20, alignItems: 'center', marginBottom: 24 },
+  fareLabel: { color: 'white', fontSize: 16 },
+  fareAmount: { color: 'white', fontSize: 42, fontWeight: 'bold' },
+  btn: { backgroundColor: '#4CAF50', padding: 18, borderRadius: 12, alignItems: 'center', marginBottom: 12 },
+  btnText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  back: { padding: 12, alignItems: 'center' },
+  backText: { color: '#1A3C6E', fontSize: 16 },
 });

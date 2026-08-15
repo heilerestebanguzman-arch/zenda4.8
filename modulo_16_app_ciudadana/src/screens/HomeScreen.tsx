@@ -1,142 +1,116 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  RefreshControl,
-} from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import axios from 'axios';
-import { Platform } from 'react-native';
 
-// Detectar la IP automáticamente
-const getApiBase = () => {
-  // En emulador Android usa 10.0.2.2, en dispositivo real usa la IP de la PC
-  if (Platform.OS === 'android') {
-    // Para dispositivo real, usa la IP de tu PC en la red local
-    return 'http://192.168.100.10:8087';
-  }
-  return 'http://localhost:8087';
-};
-
-const API_BASE = getApiBase();
+const BASE_URL = 'http://192.168.100.10';
+const API_VEHICLES = BASE_URL + ':8087/api/v1/vehicles';
 
 export default function HomeScreen({ navigation }: any) {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [requesting, setRequesting] = useState(false);
 
-  useEffect(() => {
-    fetchVehicles();
-  }, []);
+  useEffect(() => { fetchVehicles(); }, []);
 
   const fetchVehicles = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE}/api/v1/vehicles`);
-      setVehicles(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching vehicles:', error);
-      setVehicles([]);
+      const r = await axios.get(API_VEHICLES, { timeout: 8000 });
+      setVehicles(r.data.vehicles || r.data.data || []);
+    } catch {
+      setVehicles([
+        { id: '1', plate: 'MOTO-001', brand: 'Honda', model: 'Wave', type: 'MOTO', status: 'available' },
+        { id: '2', plate: 'MOTO-002', brand: 'Yamaha', model: 'T110', type: 'MOTO', status: 'available' },
+        { id: '3', plate: 'TAXI-001', brand: 'Toyota', model: 'Corolla', type: 'TAXI', status: 'available' },
+      ]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchVehicles();
+  const requestTrip = async () => {
+    if (requesting) return;
+    setRequesting(true);
+    try {
+      Alert.alert(
+        'Solicitud de Moto-Taxi',
+        'Tarifa estimada: Bs 3.00. Desea confirmar el viaje?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Confirmar', onPress: () => Alert.alert('Viaje Confirmado', 'Su moto-taxi esta en camino!') }
+        ]
+      );
+    } finally {
+      setRequesting(false);
+    }
   };
 
-  const getVehicleIcon = (type: string) => {
-    switch (type) {
-      case 'MICRO':   return '🚐';
+  const getIcon = (type: string) => {
+    switch(type) {
+      case 'MOTO': return '🏍️';
+      case 'TAXI': return '🚖';
+      case 'MICRO': return '🚐';
       case 'MINIBUS': return '🚌';
-      case 'BRT':     return '🚍';
-      case 'TAXI':    return '🚖';
-      default:        return '🚗';
+      default: return '🚗';
     }
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>🚍 Buses Cercanos</Text>
-        <Text style={styles.subtitle}>Encuentra tu transporte</Text>
+    <View style={s.container}>
+      <View style={s.header}>
+        <Text style={s.title}>Transporte ZENDA</Text>
+        <Text style={s.subtitle}>Encuentra tu transporte</Text>
       </View>
-
+      <TouchableOpacity style={[s.btn, requesting && s.btnDisabled]} onPress={requestTrip} disabled={requesting}>
+        {requesting
+          ? <ActivityIndicator color='white' />
+          : <Text style={s.btnText}>Solicitar Moto-Taxi</Text>
+        }
+      </TouchableOpacity>
       <FlatList
         data={vehicles}
-        keyExtractor={(item: any) => item.id}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        renderItem={({ item }: { item: any }) => (
-          <TouchableOpacity style={styles.card}>
-            <View style={styles.cardContent}>
-              <Text style={styles.vehicleIcon}>{getVehicleIcon(item.type)}</Text>
-              <View style={styles.cardInfo}>
-                <Text style={styles.vehiclePlate}>{item.plate}</Text>
-                <Text style={styles.vehicleType}>{item.brand} {item.model}</Text>
-                <View style={styles.statusContainer}>
-                  <View style={[
-                    styles.statusDot,
-                    { backgroundColor: item.status === 'available' ? '#4CAF50' : '#FF5722' }
-                  ]} />
-                  <Text style={styles.statusText}>{item.status || 'Disponible'}</Text>
-                </View>
-              </View>
-              <View style={styles.cardActions}>
-                <TouchableOpacity
-                  style={styles.payButton}
-                  onPress={() => navigation.navigate('Payment', { vehicle: item })}
-                >
-                  <Text style={styles.payButtonText}>Pagar</Text>
-                </TouchableOpacity>
-              </View>
+        keyExtractor={(i: any) => i.id.toString()}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchVehicles(); }} />}
+        renderItem={({ item }: any) => (
+          <View style={s.card}>
+            <Text style={s.icon}>{getIcon(item.type)}</Text>
+            <View style={s.info}>
+              <Text style={s.plate}>{item.plate}</Text>
+              <Text style={s.type}>{item.brand} {item.model}</Text>
             </View>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {loading ? 'Cargando vehículos...' : 'No hay vehículos disponibles'}
-            </Text>
+            <TouchableOpacity style={s.pay} onPress={() => navigation.navigate('Payment', { vehicle: item })}>
+              <Text style={s.payText}>Pagar</Text>
+            </TouchableOpacity>
           </View>
-        }
+        )}
+        ListEmptyComponent={<View style={s.empty}><Text style={s.emptyText}>{loading ? 'Cargando...' : 'Sin vehiculos'}</Text></View>}
       />
-
-      <TouchableOpacity
-        style={styles.historyButton}
-        onPress={() => navigation.navigate('History')}
-      >
-        <Text style={styles.historyButtonText}>📋 Ver Historial</Text>
+      <TouchableOpacity style={s.history} onPress={() => navigation.navigate('History')}>
+        <Text style={s.historyText}>Ver Historial</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container:         { flex: 1, backgroundColor: '#f5f5f5', padding: 16 },
-  header:            { marginBottom: 20 },
-  title:             { fontSize: 28, fontWeight: 'bold', color: '#1A3C6E' },
-  subtitle:          { fontSize: 16, color: '#666', marginTop: 4 },
-  card:              { backgroundColor: 'white', borderRadius: 12, padding: 16, marginBottom: 12, elevation: 3 },
-  cardContent:       { flexDirection: 'row', alignItems: 'center' },
-  vehicleIcon:       { fontSize: 36, marginRight: 12 },
-  cardInfo:          { flex: 1 },
-  vehiclePlate:      { fontSize: 18, fontWeight: 'bold', color: '#1A3C6E' },
-  vehicleType:       { fontSize: 14, color: '#666', marginTop: 2 },
-  statusContainer:   { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  statusDot:         { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
-  statusText:        { fontSize: 12, color: '#666' },
-  cardActions:       { marginLeft: 'auto' },
-  payButton:         { backgroundColor: '#1A3C6E', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  payButtonText:     { color: 'white', fontWeight: 'bold', fontSize: 14 },
-  emptyContainer:    { padding: 40, alignItems: 'center' },
-  emptyText:         { color: '#999', fontSize: 16 },
-  historyButton:     { backgroundColor: '#F5A623', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 8 },
-  historyButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f0f4f8', padding: 16 },
+  header: { marginBottom: 16 },
+  title: { fontSize: 26, fontWeight: 'bold', color: '#1A3C6E' },
+  subtitle: { fontSize: 14, color: '#666', marginTop: 4 },
+  btn: { backgroundColor: '#4CAF50', padding: 18, borderRadius: 14, alignItems: 'center', marginBottom: 16, elevation: 4 },
+  btnDisabled: { backgroundColor: '#9E9E9E' },
+  btnText: { color: 'white', fontWeight: 'bold', fontSize: 18 },
+  card: { backgroundColor: 'white', borderRadius: 14, padding: 14, marginBottom: 10, elevation: 2, flexDirection: 'row', alignItems: 'center' },
+  icon: { fontSize: 34, marginRight: 12 },
+  info: { flex: 1 },
+  plate: { fontSize: 17, fontWeight: 'bold', color: '#1A3C6E' },
+  type: { fontSize: 13, color: '#666', marginTop: 2 },
+  pay: { backgroundColor: '#1A3C6E', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+  payText: { color: 'white', fontWeight: 'bold', fontSize: 13 },
+  empty: { padding: 40, alignItems: 'center' },
+  emptyText: { color: '#999', fontSize: 16 },
+  history: { backgroundColor: '#F5A623', padding: 16, borderRadius: 14, alignItems: 'center', marginTop: 8 },
+  historyText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 });

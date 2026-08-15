@@ -36,7 +36,81 @@ app.get('/health', (_req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+// ============================================
+// PROXY PARA AUTENTICACIÓN (M2)
+// ============================================
 
+// Login
+app.post('/api/v1/auth/login', async (req, res) => {
+  try {
+    const url = `${SERVICES.users}/api/v1/auth/login`;
+    console.log(`🔄 POST Auth Login: ${url}`);
+    
+    const response = await axios.post(url, req.body, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...req.headers
+      }
+    });
+    
+    res.status(response.status).json(response.data);
+  } catch (error: any) {
+    console.error('❌ Error en login:', error.message);
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(500).json({ error: 'Error al conectar con el servicio de autenticación' });
+    }
+  }
+});
+
+// Register
+app.post('/api/v1/auth/register', async (req, res) => {
+  try {
+    const url = `${SERVICES.users}/api/v1/auth/register`;
+    console.log(`🔄 POST Auth Register: ${url}`);
+    
+    const response = await axios.post(url, req.body, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...req.headers
+      }
+    });
+    
+    res.status(response.status).json(response.data);
+  } catch (error: any) {
+    console.error('❌ Error en register:', error.message);
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(500).json({ error: 'Error al conectar con el servicio de autenticación' });
+    }
+  }
+});
+
+// Refresh Token
+app.post('/api/v1/auth/refresh', async (req, res) => {
+  try {
+    const url = `${SERVICES.users}/api/v1/auth/refresh`;
+    console.log(`🔄 POST Auth Refresh: ${url}`);
+    
+    const response = await axios.post(url, req.body, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...req.headers
+      }
+    });
+    
+    res.status(response.status).json(response.data);
+  } catch (error: any) {
+    console.error('❌ Error en refresh:', error.message);
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(500).json({ error: 'Error al conectar con el servicio de autenticación' });
+    }
+  }
+});
 // ============================================
 // PROXY PARA USUARIOS (M2)
 // ============================================

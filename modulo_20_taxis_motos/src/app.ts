@@ -56,7 +56,116 @@ app.get('/health', (_req, res) => {
         timestamp: new Date().toISOString()
     });
 });
+// ============================================
+// SERVICIO DE ASIGNACIÓN SECUENCIAL
+// ============================================
 
+class AssignmentService {
+    private readonly PING_TIMEOUT = 10000; // 10 segundos
+    private readonly ACK_TIMEOUT = 2000; // 2 segundos de gracia
+    private readonly NEARBY_RADIUS = 2; // 2 km
+
+    async assignDriver(tripId: string, startLat: number, startLng: number): Promise<any> {
+        // 1. Buscar conductores cercanos (simulado)
+        const nearbyDrivers = [
+            { 
+                id: 'driver-1', 
+                name: 'Juan Pérez', 
+                lat: -17.7800, 
+                lng: -63.1800, 
+                rating: 4.8,
+                distance: 0.5,
+                status: 'available'
+            },
+            { 
+                id: 'driver-2', 
+                name: 'María Gómez', 
+                lat: -17.7850, 
+                lng: -63.1850, 
+                rating: 4.9,
+                distance: 0.8,
+                status: 'available'
+            },
+            { 
+                id: 'driver-3', 
+                name: 'Carlos López', 
+                lat: -17.7750, 
+                lng: -63.1900, 
+                rating: 4.7,
+                distance: 1.2,
+                status: 'available'
+            },
+        ];
+
+        // Filtrar conductores disponibles
+        const availableDrivers = nearbyDrivers.filter(d => d.status === 'available');
+
+        if (availableDrivers.length === 0) {
+            throw new Error('No hay conductores disponibles');
+        }
+
+        // 2. Asignación secuencial
+        for (const driver of availableDrivers) {
+            console.log(`🔄 Asignando a conductor ${driver.name} (distancia: ${driver.distance} km)...`);
+
+            // Enviar ping al conductor
+            const accepted = await this.sendPingWithAck(driver.id, tripId);
+
+            if (accepted) {
+                console.log(`✅ Conductor ${driver.name} aceptó el viaje`);
+                return driver;
+            }
+
+            console.log(`⏳ Conductor ${driver.name} no respondió, pasando al siguiente...`);
+            await this.sleep(500);
+        }
+
+        throw new Error('Ningún conductor aceptó el viaje');
+    }
+
+    private async sendPingWithAck(driverId: string, tripId: string): Promise<boolean> {
+        // 1. Enviar ping con ACK
+        const ackReceived = await this.sendWithAck(driverId, tripId);
+
+        if (!ackReceived) {
+            // Dar 2 segundos de gracia por pérdida de señal
+            console.log(`📡 Señal débil, dando gracia a ${driverId}...`);
+            await this.sleep(this.ACK_TIMEOUT);
+            const retry = await this.sendWithAck(driverId, tripId);
+            if (!retry) {
+                return false;
+            }
+        }
+
+        // 2. Esperar aceptación del conductor
+        console.log(`⏳ Esperando aceptación de ${driverId}...`);
+        return new Promise((resolve) => {
+            const timer = setTimeout(() => {
+                console.log(`⏰ Timeout para ${driverId}`);
+                resolve(false);
+            }, this.PING_TIMEOUT);
+
+            // Simular aceptación del conductor (en producción, sería WebSocket)
+            // Por ahora, simulamos que el conductor acepta en 3-7 segundos
+            const acceptDelay = 3000 + Math.random() * 4000;
+            setTimeout(() => {
+                clearTimeout(timer);
+                console.log(`✅ Conductor ${driverId} aceptó`);
+                resolve(true);
+            }, acceptDelay);
+        });
+    }
+
+    private async sendWithAck(driverId: string, tripId: string): Promise<boolean> {
+        console.log(`📨 Enviando ping a ${driverId}...`);
+        // Simular ACK (en producción, esperar respuesta del dispositivo)
+        return true;
+    }
+
+    private sleep(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
 // ============================================
 // ENDPOINTS DE TAXIS Y MOTOS
 // ============================================

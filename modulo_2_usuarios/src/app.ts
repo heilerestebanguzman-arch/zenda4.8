@@ -7,11 +7,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Health Check
 app.get('/health', (_req, res) => {
   return res.json({
     status: 'OK',
@@ -21,10 +19,112 @@ app.get('/health', (_req, res) => {
 });
 
 // ============================================
+// AUTENTICACIÓN (SIMULADA PARA PRUEBAS)
+// ============================================
+
+// Login
+app.post('/api/v1/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    console.log(`🔐 Intento de login: ${email}`);
+    
+    if (email === 'admin@zenda.com' && password === 'admin123') {
+      const user = {
+        id: '1',
+        email: 'admin@zenda.com',
+        name: 'Admin ZENDA',
+        role: 'admin'
+      };
+      
+      const token = 'fake-jwt-token-' + Date.now();
+      
+      return res.json({
+        success: true,
+        data: {
+          user,
+          accessToken: token,
+          refreshToken: 'fake-refresh-token'
+        }
+      });
+    } else {
+      return res.status(401).json({
+        success: false,
+        error: 'Credenciales inválidas'
+      });
+    }
+  } catch (error: any) {
+    console.error('❌ Error en login:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Register
+app.post('/api/v1/auth/register', async (req, res) => {
+  try {
+    const { name, email, phone, role } = req.body;
+    
+    console.log(`📝 Registro de usuario: ${email}`);
+    
+    const newUser = {
+      id: Date.now().toString(),
+      name,
+      email,
+      phone,
+      role: role || 'citizen',
+      created_at: new Date().toISOString()
+    };
+    
+    return res.status(201).json({
+      success: true,
+      data: newUser
+    });
+  } catch (error: any) {
+    console.error('❌ Error en register:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Refresh Token
+app.post('/api/v1/auth/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'Refresh token requerido'
+      });
+    }
+    
+    const newToken = 'fake-jwt-token-' + Date.now();
+    
+    return res.json({
+      success: true,
+      data: {
+        accessToken: newToken,
+        refreshToken: 'fake-refresh-token'
+      }
+    });
+  } catch (error: any) {
+    console.error('❌ Error en refresh:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// ============================================
 // ENDPOINTS DE USUARIOS
 // ============================================
 
-// Obtener todos los usuarios
 app.get('/api/v1/users', async (_req, res) => {
   try {
     const users = [
@@ -38,7 +138,6 @@ app.get('/api/v1/users', async (_req, res) => {
   }
 });
 
-// Obtener un usuario por ID
 app.get('/api/v1/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -59,7 +158,6 @@ app.get('/api/v1/users/:id', async (req, res) => {
   }
 });
 
-// Crear un nuevo usuario
 app.post('/api/v1/users', async (req, res) => {
   try {
     const { name, email, role } = req.body;
@@ -85,7 +183,6 @@ app.post('/api/v1/users', async (req, res) => {
   }
 });
 
-// Actualizar un usuario
 app.put('/api/v1/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -105,7 +202,6 @@ app.put('/api/v1/users/:id', async (req, res) => {
   }
 });
 
-// Eliminar un usuario
 app.delete('/api/v1/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -118,7 +214,6 @@ app.delete('/api/v1/users/:id', async (req, res) => {
   }
 });
 
-// Iniciar servidor
 app.listen(PORT, () => {
   console.log(`🚀 Servidor en puerto ${PORT}`);
   console.log(`📝 Health: http://localhost:${PORT}/health`);

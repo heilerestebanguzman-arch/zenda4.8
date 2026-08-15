@@ -1,121 +1,47 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  ActivityIndicator,
-} from 'react-native';
-import axios from 'axios';
+import React from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 
-export default function HistoryScreen() {
-  const [trips, setTrips] = useState([]);
-  const [loading, setLoading] = useState(true);
+const mockHistory = [
+  { id: '1', date: '2026-08-08', route: 'Centro - Terminal', amount: '3.00', status: 'Completado' },
+  { id: '2', date: '2026-08-07', route: 'Mercado - Hospital', amount: '3.00', status: 'Completado' },
+  { id: '3', date: '2026-08-06', route: 'Plaza - Aeropuerto', amount: '5.00', status: 'Completado' },
+];
 
-  useEffect(() => {
-    fetchHistory();
-  }, []);
-
-  const fetchHistory = async () => {
-    try {
-      // ✅ CAMBIADO: Usa la IP correcta de la red
-      const response = await axios.get('http://192.168.100.10:8103/api/v1/mobility/history/user-123');
-      setTrips(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching history:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#1A3C6E" />
-      </View>
-    );
-  }
-
+export default function HistoryScreen({ navigation }: any) {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>📋 Historial de Viajes</Text>
+    <View style={s.container}>
+      <Text style={s.title}>Historial de Viajes</Text>
       <FlatList
-        data={trips}
-        keyExtractor={(item: any) => item.id}
-        renderItem={({ item }: { item: any }) => (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.vehicleType}>{item.vehicle_type}</Text>
-              <Text style={styles.status}>{item.status}</Text>
+        data={mockHistory}
+        keyExtractor={i => i.id}
+        renderItem={({ item }) => (
+          <View style={s.card}>
+            <View style={s.row}>
+              <Text style={s.route}>{item.route}</Text>
+              <Text style={s.amount}>Bs {item.amount}</Text>
             </View>
-            <Text style={styles.date}>
-              {new Date(item.created_at).toLocaleDateString()}
-            </Text>
-            <Text style={styles.driver}>Conductor: {item.driver_id || 'N/A'}</Text>
+            <View style={s.row}>
+              <Text style={s.date}>{item.date}</Text>
+              <Text style={s.status}>{item.status}</Text>
+            </View>
           </View>
         )}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No hay viajes registrados</Text>
-          </View>
-        }
       />
+      <TouchableOpacity style={s.btn} onPress={() => navigation.goBack()}>
+        <Text style={s.btnText}>Volver</Text>
+      </TouchableOpacity>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 16,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1A3C6E',
-    marginBottom: 16,
-  },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  vehicleType: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1A3C6E',
-  },
-  status: {
-    fontSize: 14,
-    color: '#4CAF50',
-  },
-  date: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  driver: {
-    fontSize: 12,
-    color: '#999',
-  },
-  emptyContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: '#999',
-    fontSize: 16,
-  },
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f0f4f8', padding: 16 },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#1A3C6E', marginBottom: 16 },
+  card: { backgroundColor: 'white', borderRadius: 12, padding: 14, marginBottom: 10, elevation: 2 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  route: { fontSize: 15, fontWeight: '600', color: '#1A3C6E' },
+  amount: { fontSize: 15, fontWeight: 'bold', color: '#4CAF50' },
+  date: { fontSize: 13, color: '#999' },
+  status: { fontSize: 13, color: '#4CAF50' },
+  btn: { backgroundColor: '#1A3C6E', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 },
+  btnText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
 });

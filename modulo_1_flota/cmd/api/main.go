@@ -112,9 +112,10 @@ func main() {
                 v.Type = "BUS"
             }
 
-            validTypes := map[string]bool{"MICRO": true, "MINIBUS": true, "BRT": true, "BUS": true, "TAXI": true}
+            // ✅ TIPOS VÁLIDOS - AHORA INCLUYE "MOTO"
+            validTypes := map[string]bool{"MICRO": true, "MINIBUS": true, "BRT": true, "BUS": true, "TAXI": true, "MOTO": true}
             if !validTypes[v.Type] {
-                sendError(w, "Tipo inválido. Permitidos: MICRO, MINIBUS, BRT, BUS", http.StatusBadRequest)
+                sendError(w, "Tipo inválido. Permitidos: MICRO, MINIBUS, BRT, BUS, TAXI, MOTO", http.StatusBadRequest)
                 return
             }
 
