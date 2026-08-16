@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { authService } from '../../services/authService';
 
 const API_BASE = 'http://192.168.100.10:8093';
 
@@ -19,7 +20,7 @@ export default function LoginScreen({ navigation }: any) {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('⚠️ Error', 'Por favor ingrese email y contraseña');
+      Alert.alert('Error', 'Por favor ingresa email y contraseña');
       return;
     }
 
@@ -30,14 +31,18 @@ export default function LoginScreen({ navigation }: any) {
         password,
       });
 
-      if (response.data.success) {
-        await AsyncStorage.setItem('accessToken', response.data.data.accessToken);
-        await AsyncStorage.setItem('user', JSON.stringify(response.data.data.user));
-        Alert.alert('✅ Éxito', 'Inicio de sesión exitoso');
-        navigation.replace('Home');
-      }
+      const { token, user } = response.data.data;
+      
+      // Guardar sesión
+      await authService.saveSession(token, user);
+      
+      Alert.alert('✅ Éxito', 'Inicio de sesión exitoso');
+      // La navegación se maneja automáticamente en App.tsx
     } catch (error: any) {
-      Alert.alert('❌ Error', error.response?.data?.error || 'Error al iniciar sesión');
+      Alert.alert(
+        '❌ Error',
+        error.response?.data?.message || 'Credenciales incorrectas'
+      );
     } finally {
       setLoading(false);
     }
@@ -45,15 +50,14 @@ export default function LoginScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🚍 ZENDA Transport</Text>
-      <Text style={styles.subtitle}>Iniciar Sesión</Text>
+      <Text style={styles.title}>🚗 ZENDA</Text>
+      <Text style={styles.subtitle}>Inicia sesión en tu cuenta</Text>
 
       <TextInput
         style={styles.input}
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
-        keyboardType="email-address"
         autoCapitalize="none"
       />
 
@@ -66,29 +70,65 @@ export default function LoginScreen({ navigation }: any) {
       />
 
       <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? 'Cargando...' : 'Iniciar Sesión'}</Text>
+        {loading ? (
+          <ActivityIndicator color="white" />
+        ) : (
+          <Text style={styles.buttonText}>Iniciar Sesión</Text>
+        )}
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-        <Text style={styles.linkText}>¿No tienes cuenta? Regístrate</Text>
+        <Text style={styles.registerText}>¿No tienes cuenta? Regístrate</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, justifyContent: 'center', backgroundColor: '#f5f5f5' },
-  title: { fontSize: 32, fontWeight: 'bold', color: '#1A3C6E', textAlign: 'center' },
-  subtitle: { fontSize: 18, color: '#666', textAlign: 'center', marginBottom: 30 },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: '#f0f4f8',
+  },
+  title: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#1A3C6E',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
   input: {
     backgroundColor: 'white',
-    padding: 15,
+    padding: 14,
     borderRadius: 10,
-    marginBottom: 15,
+    marginBottom: 12,
+    fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
   },
-  button: { backgroundColor: '#1A3C6E', padding: 15, borderRadius: 10, alignItems: 'center' },
-  buttonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-  linkText: { color: '#1A3C6E', textAlign: 'center', marginTop: 15 },
+  button: {
+    backgroundColor: '#1A3C6E',
+    padding: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  registerText: {
+    color: '#1A3C6E',
+    textAlign: 'center',
+    marginTop: 16,
+    fontSize: 14,
+  },
 });
