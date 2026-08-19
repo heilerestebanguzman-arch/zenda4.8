@@ -12,12 +12,14 @@ import {
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import axios from 'axios';
+import { authService } from '../services/authService';
+import { FavoritesPanel } from '../components/FavoritesPanel';
 import { calculateFare } from '../services/fareService';
 
 // ============================================
-// CONFIGURACIÓN
+// CONFIGURACIÓN - CAMBIA A TU IP REAL
 // ============================================
-const BASE_URL = 'http://192.168.100.10';
+const BASE_URL = 'http://192.168.1.67';  // ← CAMBIA ESTA IP
 const API_VEHICLES = `${BASE_URL}:8081/api/v1/vehicles`;
 const API_MOBILITY = `${BASE_URL}:8103/api/v1/mobility`;
 
@@ -29,22 +31,27 @@ export default function HomeScreen({ navigation }: any) {
   const [location, setLocation] = useState<any>(null);
   const [destination, setDestination] = useState('');
   const [fare, setFare] = useState<number | null>(null);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [user, setUser] = useState<any>(null);
 
   // ============================================
-  // OBTENER UBICACIÓN
+  // OBTENER USUARIO Y UBICACIÓN
   // ============================================
   useEffect(() => {
-    (async () => {
+    const init = async () => {
+      const userData = await authService.getUser();
+      setUser(userData);
+      console.log('👤 Usuario:', userData?.fullName || 'No logueado');
+
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        setErrorMsg('Permiso de ubicación denegado');
+        Alert.alert('Error', 'Permiso de ubicación denegado');
         return;
       }
-      let location = await Location.getCurrentPositionAsync({});
-      setLocation(location);
-    })();
-    fetchVehicles();
+      let loc = await Location.getCurrentPositionAsync({});
+      setLocation(loc);
+      fetchVehicles();
+    };
+    init();
   }, []);
 
   // ============================================
@@ -53,11 +60,15 @@ export default function HomeScreen({ navigation }: any) {
   const fetchVehicles = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(API_VEHICLES, { timeout: 8000 });
+      const token = await authService.getToken();
+      const response = await axios.get(API_VEHICLES, {
+        timeout: 8000,
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       const data = response.data.vehicles || response.data.data || [];
       setVehicles(data.length > 0 ? data : getMockVehicles());
     } catch (error) {
-      console.warn('Usando vehículos de ejemplo');
+      console.warn('⚠️ Usando vehículos de ejemplo');
       setVehicles(getMockVehicles());
     } finally {
       setLoading(false);
@@ -70,8 +81,6 @@ export default function HomeScreen({ navigation }: any) {
     { id: '2', plate: 'MOTO-002', brand: 'Yamaha', model: 'T110', type: 'MOTO', status: 'ACTIVE' },
     { id: '3', plate: 'TAXI-001', brand: 'Toyota', model: 'Corolla', type: 'TAXI', status: 'ACTIVE' },
   ];
-
-  const onRefresh = () => { setRefreshing(true); fetchVehicles(); };
 
   // ============================================
   // SOLICITAR VIAJE
@@ -86,10 +95,8 @@ export default function HomeScreen({ navigation }: any) {
     setRequesting(true);
 
     try {
-      // Calcular tarifa (si no hay destino, usar fallback)
       let estimatedFare = 3.50;
       if (destination) {
-        // Simular coordenadas del destino (por ahora)
         const destCoords = { lat: -17.4900, lng: -63.1700 };
         estimatedFare = calculateFare(
           location.coords.latitude,
@@ -99,25 +106,27 @@ export default function HomeScreen({ navigation }: any) {
         );
       }
 
-      // Intentar conectar a M20
       try {
+        const token = await authService.getToken();
         const response = await axios.post(
           `${API_MOBILITY}/request`,
           {
-            userId: 'pasajero-test',
+            userId: user?.id || 'pasajero-test',
             lat: location.coords.latitude,
             lng: location.coords.longitude,
             vehicleType: 'MOTO',
             destination: destination || 'Sin destino',
           },
-          { timeout: 5000 }
+          {
+            timeout: 5000,
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          }
         );
         console.log('✅ M20 respondió:', response.data);
       } catch (error) {
         console.warn('⚠️ M20 no disponible, usando fallback');
       }
 
-      // Mostrar confirmación
       Alert.alert(
         '🛵 Solicitar Moto-Taxi',
         `📍 Origen: ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}\n` +
@@ -152,7 +161,6 @@ export default function HomeScreen({ navigation }: any) {
   const handleDestinationChange = (text: string) => {
     setDestination(text);
     if (location && text.length > 3) {
-      // Simular cálculo de tarifa
       const estimated = calculateFare(
         location.coords.latitude,
         location.coords.longitude,
@@ -165,26 +173,38 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
+  const handleFavoriteSelect = (favorite: any) => {
+    setDestination(favorite.address);
+    if (location) {
+      const estimated = calculateFare(
+        location.coords.latitude,
+        location.coords.longitude,
+        favorite.lat,
+        favorite.lng
+      );
+      setFare(estimated);
+      Alert.alert(
+        '📍 Destino seleccionado',
+        `Has seleccionado ${favorite.name} - ${favorite.address}\n💰 Tarifa: Bs ${estimated.toFixed(2)}`
+      );
+    }
+  };
+
   const getIcon = (type: string) => {
     const icons: Record<string, string> = {
-      MOTO: '🏍️',
-      TAXI: '🚖',
-      MICRO: '🚐',
-      MINIBUS: '🚌',
-      BRT: '🚍',
+      MOTO: '🏍️', TAXI: '🚖', MICRO: '🚐', MINIBUS: '🚌', BRT: '🚍',
     };
     return icons[type] || '🚗';
   };
 
   return (
     <ScrollView style={styles.container}>
-      {/* HEADER */}
       <View style={styles.header}>
-        <Text style={styles.title}>🏍️ Transporte ZENDA</Text>
+        <Text style={styles.title}>🏍️ ZENDA</Text>
         <Text style={styles.subtitle}>Warnes - Tu movilidad urbana</Text>
+        {user && <Text style={styles.userGreeting}>👋 Hola, {user.fullName || user.firstName || 'Pasajero'}</Text>}
       </View>
 
-      {/* MAPA */}
       <View style={styles.mapContainer}>
         {location ? (
           <MapView
@@ -215,18 +235,18 @@ export default function HomeScreen({ navigation }: any) {
         )}
       </View>
 
-      {/* SELECTOR DE DESTINO */}
+      <FavoritesPanel onSelectFavorite={handleFavoriteSelect} />
+
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
           placeholder="¿A dónde vas? (ej. Mercado Central)"
-          placeholderTextColor="#999"
+          placeholderTextColor="#94A3B8"
           value={destination}
           onChangeText={handleDestinationChange}
         />
       </View>
 
-      {/* TARIFA ESTIMADA */}
       {fare !== null && (
         <View style={styles.fareContainer}>
           <Text style={styles.fareLabel}>Tarifa estimada:</Text>
@@ -234,7 +254,6 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       )}
 
-      {/* BOTÓN SOLICITAR */}
       <TouchableOpacity
         style={[styles.requestBtn, requesting && styles.requestBtnDisabled]}
         onPress={requestTrip}
@@ -253,8 +272,7 @@ export default function HomeScreen({ navigation }: any) {
         )}
       </TouchableOpacity>
 
-      {/* LISTA DE VEHÍCULOS */}
-      <Text style={styles.sectionTitle}>Vehículos disponibles</Text>
+      <Text style={styles.sectionTitle}>🚗 Vehículos disponibles</Text>
       {vehicles.map((item) => (
         <View key={item.id} style={styles.card}>
           <Text style={styles.icon}>{getIcon(item.type)}</Text>
@@ -262,7 +280,7 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.plate}>{item.plate}</Text>
             <Text style={styles.model}>{item.brand} {item.model}</Text>
             <View style={styles.statusRow}>
-              <View style={[styles.statusDot, { backgroundColor: '#4CAF50' }]} />
+              <View style={[styles.statusDot, { backgroundColor: '#2ECC71' }]} />
               <Text style={styles.statusText}>Disponible</Text>
             </View>
           </View>
@@ -276,7 +294,6 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       ))}
 
-      {/* BOTÓN HISTORIAL */}
       <TouchableOpacity
         style={styles.historyBtn}
         onPress={() => navigation.navigate('History')}
@@ -289,94 +306,42 @@ export default function HomeScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f4f8', padding: 16 },
+  container: { flex: 1, backgroundColor: '#0F172A', padding: 16 },
   header: { marginBottom: 12 },
-  title: { fontSize: 26, fontWeight: 'bold', color: '#1A3C6E' },
-  subtitle: { fontSize: 14, color: '#666', marginTop: 4 },
+  title: { fontSize: 26, fontWeight: '900', color: '#FFFFFF', letterSpacing: 1 },
+  subtitle: { fontSize: 13, color: '#94A3B8', marginTop: 2 },
+  userGreeting: { fontSize: 14, color: '#2ECC71', marginTop: 4 },
 
-  mapContainer: {
-    height: 300,
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: 12,
-    backgroundColor: '#e8ecf0',
-  },
+  mapContainer: { height: 280, borderRadius: 16, overflow: 'hidden', marginBottom: 12, backgroundColor: '#1E293B' },
   map: { flex: 1 },
-  mapLoading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mapLoadingText: { color: '#666', marginTop: 8 },
+  mapLoading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  mapLoadingText: { color: '#94A3B8', marginTop: 8 },
 
   inputContainer: { marginBottom: 12 },
-  input: {
-    backgroundColor: 'white',
-    padding: 14,
-    borderRadius: 12,
-    fontSize: 16,
-    color: '#333',
-    elevation: 2,
-  },
+  input: { backgroundColor: '#F8FAFC', padding: 14, borderRadius: 12, fontSize: 15, color: '#0F172A', borderWidth: 1, borderColor: '#E2E8F0' },
 
-  fareContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#1A3C6E',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  fareLabel: { color: 'white', fontSize: 16 },
-  fareAmount: { color: '#F5A623', fontSize: 24, fontWeight: 'bold' },
+  fareContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1E293B', padding: 14, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: '#2ECC71' },
+  fareLabel: { color: '#94A3B8', fontSize: 14 },
+  fareAmount: { color: '#2ECC71', fontSize: 22, fontWeight: 'bold' },
 
-  requestBtn: {
-    backgroundColor: '#4CAF50',
-    padding: 18,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginBottom: 16,
-    elevation: 4,
-  },
-  requestBtnDisabled: { backgroundColor: '#9E9E9E' },
-  requestBtnText: { color: 'white', fontWeight: 'bold', fontSize: 18 },
+  requestBtn: { backgroundColor: '#1A3C6E', padding: 16, borderRadius: 14, alignItems: 'center', marginBottom: 16, elevation: 4, shadowColor: '#1A3C6E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6 },
+  requestBtnDisabled: { backgroundColor: '#475569' },
+  requestBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 17, letterSpacing: 0.5 },
 
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#444', marginBottom: 8 },
+  sectionTitle: { fontSize: 15, fontWeight: '600', color: '#FFFFFF', marginBottom: 8 },
 
-  card: {
-    backgroundColor: 'white',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 2,
-  },
+  card: { backgroundColor: '#1E293B', borderRadius: 14, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
   icon: { fontSize: 34, marginRight: 12 },
   info: { flex: 1 },
-  plate: { fontSize: 17, fontWeight: 'bold', color: '#1A3C6E' },
-  model: { fontSize: 13, color: '#666', marginTop: 2 },
+  plate: { fontSize: 17, fontWeight: 'bold', color: '#FFFFFF' },
+  model: { fontSize: 13, color: '#94A3B8', marginTop: 2 },
   statusRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   statusDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
-  statusText: { fontSize: 12, color: '#666' },
+  statusText: { fontSize: 12, color: '#94A3B8' },
 
-  payBtn: {
-    backgroundColor: '#1A3C6E',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  payBtnText: { color: 'white', fontWeight: 'bold', fontSize: 13 },
+  payBtn: { backgroundColor: '#1A3C6E', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+  payBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 13 },
 
-  historyBtn: {
-    backgroundColor: '#F5A623',
-    padding: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 20,
-    elevation: 2,
-  },
-  historyBtnText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+  historyBtn: { backgroundColor: '#1E293B', padding: 14, borderRadius: 14, alignItems: 'center', marginTop: 8, marginBottom: 20, borderWidth: 1, borderColor: '#334155' },
+  historyBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 15 },
 });
