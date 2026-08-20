@@ -2,44 +2,42 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 
 export default function PaymentScreen({ route, navigation }: any) {
-  const { vehicle } = route.params || {};
-  const handlePay = () => {
-    Alert.alert('Pago Exitoso', 'Su pago ha sido procesado.', [
+  const { vehicle } = route.params || { plate: 'Desconocido' };
+
+  const handlePay = (method: string) => {
+    Alert.alert('✅ Pago Exitoso', `Pago de Bs 3.00 con ${method}\nVehículo: ${vehicle.plate}`, [
       { text: 'OK', onPress: () => navigation.navigate('Home') }
     ]);
   };
+
   return (
-    <View style={s.container}>
-      <Text style={s.title}>Pagar Pasaje</Text>
-      {vehicle && (
-        <View style={s.card}>
-          <Text style={s.label}>Vehiculo: {vehicle.plate}</Text>
-          <Text style={s.label}>Tipo: {vehicle.brand} {vehicle.model}</Text>
-        </View>
-      )}
-      <View style={s.fareCard}>
-        <Text style={s.fareLabel}>Tarifa</Text>
-        <Text style={s.fareAmount}>Bs 3.00</Text>
-      </View>
-      <TouchableOpacity style={s.btn} onPress={handlePay}>
-        <Text style={s.btnText}>Confirmar Pago</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>💳 Pagar Pasaje</Text>
+      <Text style={styles.subtitle}>Vehículo: {vehicle.plate}</Text>
+      <Text style={styles.amount}>Bs 3.00</Text>
+
+      <TouchableOpacity style={styles.btn} onPress={() => handlePay('QR')}>
+        <Text style={styles.btnText}>📱 Pagar con QR</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={s.back} onPress={() => navigation.goBack()}>
-        <Text style={s.backText}>Volver</Text>
+
+      <TouchableOpacity style={[styles.btn, styles.btnSecondary]} onPress={() => handlePay('Efectivo')}>
+        <Text style={styles.btnText}>💵 Pagar en Efectivo</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => navigation.goBack()}>
+        <Text style={[styles.btnText, { color: '#1A3C6E' }]}>Cancelar</Text>
       </TouchableOpacity>
     </View>
   );
 }
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f4f8', padding: 20 },
-  title: { fontSize: 26, fontWeight: 'bold', color: '#1A3C6E', marginBottom: 20 },
-  card: { backgroundColor: 'white', borderRadius: 12, padding: 16, marginBottom: 16, elevation: 2 },
-  label: { fontSize: 16, color: '#333', marginBottom: 6 },
-  fareCard: { backgroundColor: '#1A3C6E', borderRadius: 12, padding: 20, alignItems: 'center', marginBottom: 24 },
-  fareLabel: { color: 'white', fontSize: 16 },
-  fareAmount: { color: 'white', fontSize: 42, fontWeight: 'bold' },
-  btn: { backgroundColor: '#4CAF50', padding: 18, borderRadius: 12, alignItems: 'center', marginBottom: 12 },
-  btnText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  back: { padding: 12, alignItems: 'center' },
-  backText: { color: '#1A3C6E', fontSize: 16 },
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#0F172A', padding: 20, alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 8 },
+  subtitle: { fontSize: 16, color: '#94A3B8', marginBottom: 8 },
+  amount: { fontSize: 36, fontWeight: 'bold', color: '#2ECC71', marginVertical: 20 },
+  btn: { backgroundColor: '#1A3C6E', padding: 16, borderRadius: 12, width: '100%', alignItems: 'center', marginBottom: 12 },
+  btnSecondary: { backgroundColor: '#F5A623' },
+  btnCancel: { backgroundColor: 'white', borderWidth: 2, borderColor: '#1A3C6E' },
+  btnText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 });

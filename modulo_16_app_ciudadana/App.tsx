@@ -22,24 +22,26 @@ export default function App() {
   }, []);
 
   const verifyStoredSession = async () => {
+    console.log('🔍 Verificando sesión...');
     try {
       const token = await authService.getToken();
+      console.log('📦 Token:', token ? 'Sí' : 'No');
       if (token) {
         const isValid = await authService.validateToken(token);
         if (isValid) {
           setIsAuthenticated(true);
-          console.log('✅ Sesión válida, usuario autenticado');
+          console.log('✅ Sesión válida');
         } else {
           await authService.logout();
           setIsAuthenticated(false);
-          console.log('⚠️ Token inválido, cerrando sesión');
+          console.log('⚠️ Token inválido');
         }
       } else {
         setIsAuthenticated(false);
-        console.log('ℹ️ No hay sesión guardada');
+        console.log('ℹ️ No hay sesión');
       }
     } catch (error) {
-      console.error('Error en verificación de sesión:', error);
+      console.error('❌ Error:', error);
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);

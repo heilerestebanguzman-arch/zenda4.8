@@ -16,12 +16,9 @@ import { authService } from '../services/authService';
 import { FavoritesPanel } from '../components/FavoritesPanel';
 import { calculateFare } from '../services/fareService';
 
-// ============================================
-// CONFIGURACIÓN - CAMBIA A TU IP REAL
-// ============================================
-const BASE_URL = 'http://192.168.1.67';  // ← CAMBIA ESTA IP
-const API_VEHICLES = `${BASE_URL}:8081/api/v1/vehicles`;
-const API_MOBILITY = `${BASE_URL}:8103/api/v1/mobility`;
+const BASE_URL = 'http://192.168.1.3:8093';
+const API_VEHICLES = `${BASE_URL}/api/v1/vehicles`;
+const API_MOBILITY = `${BASE_URL}/api/v1/mobility`;
 
 export default function HomeScreen({ navigation }: any) {
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -33,9 +30,6 @@ export default function HomeScreen({ navigation }: any) {
   const [fare, setFare] = useState<number | null>(null);
   const [user, setUser] = useState<any>(null);
 
-  // ============================================
-  // OBTENER USUARIO Y UBICACIÓN
-  // ============================================
   useEffect(() => {
     const init = async () => {
       const userData = await authService.getUser();
@@ -54,9 +48,6 @@ export default function HomeScreen({ navigation }: any) {
     init();
   }, []);
 
-  // ============================================
-  // OBTENER VEHÍCULOS
-  // ============================================
   const fetchVehicles = async () => {
     setLoading(true);
     try {
@@ -82,9 +73,6 @@ export default function HomeScreen({ navigation }: any) {
     { id: '3', plate: 'TAXI-001', brand: 'Toyota', model: 'Corolla', type: 'TAXI', status: 'ACTIVE' },
   ];
 
-  // ============================================
-  // SOLICITAR VIAJE
-  // ============================================
   const requestTrip = async () => {
     if (requesting) return;
     if (!location) {
@@ -155,9 +143,6 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
-  // ============================================
-  // CALCULAR TARIFA EN TIEMPO REAL
-  // ============================================
   const handleDestinationChange = (text: string) => {
     setDestination(text);
     if (location && text.length > 3) {
@@ -312,25 +297,69 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, color: '#94A3B8', marginTop: 2 },
   userGreeting: { fontSize: 14, color: '#2ECC71', marginTop: 4 },
 
-  mapContainer: { height: 280, borderRadius: 16, overflow: 'hidden', marginBottom: 12, backgroundColor: '#1E293B' },
+  mapContainer: {
+    height: 280,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 12,
+    backgroundColor: '#1E293B',
+  },
   map: { flex: 1 },
   mapLoading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   mapLoadingText: { color: '#94A3B8', marginTop: 8 },
 
   inputContainer: { marginBottom: 12 },
-  input: { backgroundColor: '#F8FAFC', padding: 14, borderRadius: 12, fontSize: 15, color: '#0F172A', borderWidth: 1, borderColor: '#E2E8F0' },
+  input: {
+    backgroundColor: '#F8FAFC',
+    padding: 14,
+    borderRadius: 12,
+    fontSize: 15,
+    color: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
 
-  fareContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1E293B', padding: 14, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: '#2ECC71' },
+  fareContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#2ECC71',
+  },
   fareLabel: { color: '#94A3B8', fontSize: 14 },
   fareAmount: { color: '#2ECC71', fontSize: 22, fontWeight: 'bold' },
 
-  requestBtn: { backgroundColor: '#1A3C6E', padding: 16, borderRadius: 14, alignItems: 'center', marginBottom: 16, elevation: 4, shadowColor: '#1A3C6E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6 },
+  requestBtn: {
+    backgroundColor: '#1A3C6E',
+    padding: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginBottom: 16,
+    elevation: 4,
+    shadowColor: '#1A3C6E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
   requestBtnDisabled: { backgroundColor: '#475569' },
   requestBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 17, letterSpacing: 0.5 },
 
   sectionTitle: { fontSize: 15, fontWeight: '600', color: '#FFFFFF', marginBottom: 8 },
 
-  card: { backgroundColor: '#1E293B', borderRadius: 14, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
+  card: {
+    backgroundColor: '#1E293B',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
   icon: { fontSize: 34, marginRight: 12 },
   info: { flex: 1 },
   plate: { fontSize: 17, fontWeight: 'bold', color: '#FFFFFF' },
@@ -339,9 +368,23 @@ const styles = StyleSheet.create({
   statusDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
   statusText: { fontSize: 12, color: '#94A3B8' },
 
-  payBtn: { backgroundColor: '#1A3C6E', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+  payBtn: {
+    backgroundColor: '#1A3C6E',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
   payBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 13 },
 
-  historyBtn: { backgroundColor: '#1E293B', padding: 14, borderRadius: 14, alignItems: 'center', marginTop: 8, marginBottom: 20, borderWidth: 1, borderColor: '#334155' },
+  historyBtn: {
+    backgroundColor: '#1E293B',
+    padding: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
   historyBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 15 },
 });
