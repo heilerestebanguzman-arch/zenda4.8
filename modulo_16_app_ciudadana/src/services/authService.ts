@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-const API_BASE = 'http://192.168.1.67:8093';
+const API_BASE = 'http://192.168.1.3:8093';
 
 export const authService = {
   saveSession: async (token: string, user: any) => {

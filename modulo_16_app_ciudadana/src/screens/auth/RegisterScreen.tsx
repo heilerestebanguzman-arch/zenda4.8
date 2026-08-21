@@ -4,7 +4,6 @@ import {
   Alert, KeyboardAvoidingView, Platform, ScrollView,
   ActivityIndicator, SafeAreaView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import {
   validateBolivianCI,
@@ -12,11 +11,11 @@ import {
   validateEmail,
   validatePassword,
 } from '../../utils/validators';
+import { PasswordInput } from '../../components/PasswordInput';
 
-const API_BASE = 'http://192.168.1.3:8093';
+const API_BASE = 'http://192.168.1.3:3000';
 
 export default function RegisterScreen({ navigation }: any) {
-  // Estados de campos
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [motherLastName, setMotherLastName] = useState('');
@@ -26,28 +25,20 @@ export default function RegisterScreen({ navigation }: any) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [focusedField, setFocusedField] = useState('');
 
-  // Estados de errores en tiempo real
   const [phoneError, setPhoneError] = useState('');
   const [ciError, setCiError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmError, setConfirmError] = useState('');
 
-  // Refs
   const firstNameRef = useRef<TextInput>(null);
   const lastNameRef = useRef<TextInput>(null);
   const motherLastNameRef = useRef<TextInput>(null);
   const phoneRef = useRef<TextInput>(null);
   const ciRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
-  const passwordRef = useRef<TextInput>(null);
-  const confirmPasswordRef = useRef<TextInput>(null);
-
-  // ============ VALIDADORES EN TIEMPO REAL ============
 
   const validatePhoneField = (text: string) => {
     setPhone(text);
@@ -109,10 +100,7 @@ export default function RegisterScreen({ navigation }: any) {
     }
   };
 
-  // ============ REGISTRO ============
-
   const handleRegister = async () => {
-    // Validaciones finales
     if (!firstName || !lastName || !phone || !ci || !email || !password || !confirmPassword) {
       Alert.alert('⚠️ Campos incompletos', 'Por favor completa todos los datos.');
       return;
@@ -181,8 +169,6 @@ export default function RegisterScreen({ navigation }: any) {
     }
   };
 
-  // ============ RENDER ============
-
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -194,7 +180,6 @@ export default function RegisterScreen({ navigation }: any) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* HEADER */}
           <View style={styles.headerContainer}>
             <View style={styles.logoBadge}>
               <Text style={styles.logoSymbol}>Z</Text>
@@ -204,14 +189,12 @@ export default function RegisterScreen({ navigation }: any) {
             <Text style={styles.subtitle}>Crea tu cuenta de pasajero</Text>
           </View>
 
-          {/* FORMULARIO PREMIUM */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Crear Cuenta</Text>
             <Text style={styles.cardSubtitle}>
               Únete a la revolución de la movilidad urbana
             </Text>
 
-            {/* NOMBRES */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Nombres</Text>
               <TextInput
@@ -228,7 +211,6 @@ export default function RegisterScreen({ navigation }: any) {
               />
             </View>
 
-            {/* APELLIDO PATERNO */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Apellido Paterno</Text>
               <TextInput
@@ -245,7 +227,6 @@ export default function RegisterScreen({ navigation }: any) {
               />
             </View>
 
-            {/* APELLIDO MATERNO */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Apellido Materno</Text>
               <TextInput
@@ -262,7 +243,6 @@ export default function RegisterScreen({ navigation }: any) {
               />
             </View>
 
-            {/* TELÉFONO +591 */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Celular</Text>
               <View style={styles.phoneContainer}>
@@ -291,7 +271,6 @@ export default function RegisterScreen({ navigation }: any) {
               {phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
             </View>
 
-            {/* CÉDULA DE IDENTIDAD */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Cédula de Identidad</Text>
               <TextInput
@@ -315,7 +294,6 @@ export default function RegisterScreen({ navigation }: any) {
               {ciError ? <Text style={styles.errorText}>{ciError}</Text> : null}
             </View>
 
-            {/* CORREO ELECTRÓNICO */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Correo electrónico</Text>
               <TextInput
@@ -334,82 +312,33 @@ export default function RegisterScreen({ navigation }: any) {
                 onFocus={() => setFocusedField('email')}
                 onBlur={() => setFocusedField('')}
                 returnKeyType="next"
-                onSubmitEditing={() => passwordRef.current?.focus()}
+                onSubmitEditing={() => {}}
               />
               {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
             </View>
 
-            {/* CONTRASEÑA */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Contraseña</Text>
-              <View style={[
-                styles.passwordWrapper,
-                passwordError ? styles.inputError : null,
-                focusedField === 'password' && styles.inputFocused
-              ]}>
-                <TextInput
-                  ref={passwordRef}
-                  style={styles.passwordInput}
-                  placeholder="Mínimo 6 caracteres"
-                  placeholderTextColor="#94A3B8"
-                  value={password}
-                  onChangeText={validatePasswordField}
-                  secureTextEntry={!showPassword}
-                  onFocus={() => setFocusedField('password')}
-                  onBlur={() => setFocusedField('')}
-                  returnKeyType="next"
-                  onSubmitEditing={() => confirmPasswordRef.current?.focus()}
-                />
-                <TouchableOpacity 
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeIcon}
-                >
-                  <Ionicons 
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
-                    size={22} 
-                    color="#64748B" 
-                  />
-                </TouchableOpacity>
-              </View>
+              <PasswordInput
+                placeholder="Mínimo 6 caracteres"
+                value={password}
+                onChangeText={validatePasswordField}
+                style={passwordError ? styles.inputError : null}
+              />
               {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
             </View>
 
-            {/* CONFIRMAR CONTRASEÑA */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Confirmar Contraseña</Text>
-              <View style={[
-                styles.passwordWrapper,
-                confirmError ? styles.inputError : null,
-                focusedField === 'confirmPassword' && styles.inputFocused
-              ]}>
-                <TextInput
-                  ref={confirmPasswordRef}
-                  style={styles.passwordInput}
-                  placeholder="Repite tu contraseña"
-                  placeholderTextColor="#94A3B8"
-                  value={confirmPassword}
-                  onChangeText={validateConfirmField}
-                  secureTextEntry={!showConfirmPassword}
-                  onFocus={() => setFocusedField('confirmPassword')}
-                  onBlur={() => setFocusedField('')}
-                  returnKeyType="done"
-                  onSubmitEditing={handleRegister}
-                />
-                <TouchableOpacity 
-                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  style={styles.eyeIcon}
-                >
-                  <Ionicons 
-                    name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} 
-                    size={22} 
-                    color="#64748B" 
-                  />
-                </TouchableOpacity>
-              </View>
+              <PasswordInput
+                placeholder="Repite tu contraseña"
+                value={confirmPassword}
+                onChangeText={validateConfirmField}
+                style={confirmError ? styles.inputError : null}
+              />
               {confirmError ? <Text style={styles.errorText}>{confirmError}</Text> : null}
             </View>
 
-            {/* BOTÓN DE REGISTRO */}
             <TouchableOpacity
               style={[styles.buttonAction, loading && styles.buttonDisabled]}
               onPress={handleRegister}
@@ -423,7 +352,6 @@ export default function RegisterScreen({ navigation }: any) {
               )}
             </TouchableOpacity>
 
-            {/* LINK A LOGIN */}
             <TouchableOpacity 
               onPress={() => navigation.navigate('Login')}
               style={styles.linkContainer}
@@ -438,8 +366,6 @@ export default function RegisterScreen({ navigation }: any) {
     </SafeAreaView>
   );
 }
-
-// ============ ESTILOS PREMIUM ============
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0F172A' },
@@ -536,23 +462,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#0F172A',
   },
-  
-  passwordWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-  },
-  passwordInput: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: '#0F172A',
-  },
-  eyeIcon: { paddingHorizontal: 16, paddingVertical: 12 },
   
   buttonAction: {
     backgroundColor: '#2ECC71',

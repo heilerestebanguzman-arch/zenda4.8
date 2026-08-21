@@ -1,40 +1,54 @@
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
-import dotenv from 'dotenv';
-import path from 'path';
+import { Pool } from 'pg';
 import { createRoutes } from './adapters/http/routes';
+import { PostgresUserRepository } from './adapters/repositories/PostgresUserRepository';
+import { BcryptHashService } from './adapters/hash/BcryptHashService';
+import { JwtTokenService } from './adapters/token/JwtTokenService';
+import { TokenRepository } from './infrastructure/redis/TokenRepository';
+import { AuthenticateUser } from './core/use-cases/AuthenticateUser';
+import { RegisterUser } from './core/use-cases/RegisterUser';
+import { RefreshToken } from './core/use-cases/RefreshToken';
 import { AuthController } from './adapters/http/controllers/AuthController';
 import { UserController } from './adapters/http/controllers/UserController';
 import { MFAController } from './adapters/http/controllers/MFAController';
 import { ProfileController } from './adapters/http/controllers/ProfileController';
-import { BcryptHashService } from './adapters/hash/BcryptHashService';
-import { TokenService } from './adapters/jwt/TokenService';
-import { TokenRepository } from './infrastructure/redis/TokenRepository';
-import { UserRepository } from './adapters/database/UserRepository';
-import { AuthenticateUser } from './core/use-cases/AuthenticateUser';
-import { RefreshToken } from './core/use-cases/RefreshToken';
-import { logger } from './infrastructure/logger';
-import { seedAdmin } from './seed';
-
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+import { RegisterUserController } from './adapters/http/controllers/RegisterUserController';
+import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const port = process.env.PORT || 3000;
 
-app.use(helmet());
+// Middleware
 app.use(cors());
 app.use(express.json());
 
+// Base de datos
+const pool = new Pool({
+  user: process.env.DB_USER || 'zenda_admin',
+  password: process.env.DB_PASSWORD || 'zenda_secure_pass_2026',
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432'),
+  database: process.env.DB_NAME || 'zenda',
+});
+
 // Repositorios
-const userRepository = new UserRepository();
+const userRepository = new PostgresUserRepository(pool);
 const tokenRepository = new TokenRepository();
 
 // Servicios
-const hashService = new BcryptHashService();
-const tokenService = new TokenService();
+const hashService = new BcryptHashService(10);
+const tokenService = new JwtTokenService(
+  process.env.JWT_SECRET || 'zenda_super_secret_jwt_key_2026',
+  process.env.JWT_REFRESH_SECRET || 'zenda_super_secret_refresh_key_2026'
+);
 
-// Casos de uso
+// ID Generator
+const idGenerator = {
+  generate: () => uuidv4(),
+};
+
+// Use Cases
 const authenticateUser = new AuthenticateUser(
   userRepository,
   hashService,
@@ -42,26 +56,38 @@ const authenticateUser = new AuthenticateUser(
   tokenRepository
 );
 
-const refreshToken = new RefreshToken(
-  tokenService,
-  tokenRepository
+const registerUser = new RegisterUser(
+  userRepository,
+  hashService,
+  idGenerator
 );
+
+const refreshToken = new RefreshToken(tokenRepository, tokenService);
 
 // Controladores
 const authController = new AuthController(authenticateUser, refreshToken);
-const userController = new UserController();
+const userController = new UserController(userRepository);
 const mfaController = new MFAController();
-const profileController = new ProfileController();
+const profileController = new ProfileController(userRepository);
+const registerUserController = new RegisterUserController(registerUser);
 
 // Rutas
-app.use('/api/v1', createRoutes(authController, userController, mfaController, profileController));
+app.use('/api/v1/auth', createRoutes(
+  authController,
+  userController,
+  mfaController,
+  profileController,
+  registerUserController
+));
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'M2-Usuarios', timestamp: new Date().toISOString() });
+// Health Check
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', service: 'modulo_2_usuarios', timestamp: new Date().toISOString() });
 });
 
-app.listen(PORT, async () => {
-  logger.info(`🚀 Servidor M2 (Usuarios) corriendo en http://localhost:${PORT}`);
-  logger.info(`📝 Health check: http://localhost:${PORT}/health`);
-  await seedAdmin();
+app.listen(port, '0.0.0.0', () => {
+  console.log(`🚀 M2 - Usuarios corriendo en http://localhost:${port}`);
+  console.log(`📝 Health: http://localhost:${port}/health`);
 });
+
+export default app;

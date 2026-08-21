@@ -3,12 +3,15 @@ import { AuthController } from './controllers/AuthController';
 import { UserController } from './controllers/UserController';
 import { MFAController } from './controllers/MFAController';
 import { ProfileController } from './controllers/ProfileController';
+import { RegisterUser } from '../../core/use-cases/RegisterUser';
+import { RegisterUserController } from './controllers/RegisterUserController';
 
 export const createRoutes = (
   authController: AuthController,
   userController: UserController,
   mfaController: MFAController,
-  profileController: ProfileController
+  profileController: ProfileController,
+  registerUserController: RegisterUserController
 ): Router => {
   const router = Router();
 
@@ -16,6 +19,9 @@ export const createRoutes = (
   router.post('/auth/login', authController.login.bind(authController));
   router.post('/auth/refresh', authController.refresh.bind(authController));
   router.post('/auth/logout', authController.logout.bind(authController));
+
+  // Registro de usuario
+  router.post('/auth/register', registerUserController.register.bind(registerUserController));
 
   // User routes
   router.get('/users', userController.getAll.bind(userController));
