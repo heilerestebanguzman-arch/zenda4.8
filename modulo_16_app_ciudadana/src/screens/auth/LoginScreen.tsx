@@ -8,7 +8,7 @@ import axios from 'axios';
 import { authService } from '../../services/authService';
 import { ZendaModal } from '../../components/ZendaModal';
 
-const API_BASE = 'http://192.168.1.3:3000';
+const API_BASE = 'http://192.168.1.24:3000';
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');

@@ -1,81 +1,105 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-interface Service {
-  id: string;
-  icon: string;
-  label: string;
-  description: string;
-}
-
-interface ServiceSelectorProps {
-  onSelect: (service: Service) => void;
-  selectedId?: string;
-}
-
-const services: Service[] = [
-  { id: 'moto', icon: 'bicycle-outline', label: 'Moto', description: 'Rápido y económico' },
-  { id: 'taxi', icon: 'car-outline', label: 'Auto', description: 'Comodidad y espacio' },
-  { id: 'minibus', icon: 'bus-outline', label: 'Minibus', description: 'Ruta compartida' },
-  { id: 'cargo', icon: 'cube-outline', label: 'Envíos', description: 'Paquetes express' },
+const services = [
+  { 
+    id: 'moto', 
+    icon: 'bicycle-outline', 
+    label: 'Moto', 
+    description: 'Rápido y económico',
+    price: 'Bs 3.00',
+    type: 'privado',
+    capacity: '1-2 pasajeros',
+    eta: '2 min'
+  },
+  { 
+    id: 'taxi', 
+    icon: 'car-outline', 
+    label: 'Auto', 
+    description: 'Comodidad y espacio',
+    price: 'Bs 5.00',
+    type: 'privado',
+    capacity: '4 pasajeros',
+    eta: '4 min'
+  },
+  { 
+    id: 'minibus', 
+    icon: 'bus-outline', 
+    label: 'Minibus', 
+    description: 'Ruta compartida',
+    price: 'Bs 2.50',
+    type: 'masivo',
+    capacity: '12 pasajeros',
+    eta: '6 min'
+  },
+  { 
+    id: 'cargo', 
+    icon: 'cube-outline', 
+    label: 'Envíos', 
+    description: 'Paquetes express',
+    price: 'Bs 4.00',
+    type: 'privado',
+    capacity: 'Paquetes',
+    eta: '5 min'
+  },
 ];
 
-export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ onSelect, selectedId = 'moto' }) => {
+export const ServiceSelector = ({ selectedId = 'moto', onSelect }) => {
   const [selected, setSelected] = useState(selectedId);
-
-  const handleSelect = (service: Service) => {
-    setSelected(service.id);
-    onSelect(service);
-  };
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {services.map((service) => (
-          <TouchableOpacity
-            key={service.id}
-            style={[
-              styles.serviceCard,
-              selected === service.id && styles.serviceCardActive,
-            ]}
-            onPress={() => handleSelect(service)}
-            activeOpacity={0.7}
-          >
-            <View style={[
-              styles.iconContainer,
-              selected === service.id && styles.iconContainerActive,
-            ]}>
-              <Ionicons
-                name={service.icon as any}
-                size={24}
-                color={selected === service.id ? '#FFFFFF' : '#1A3C6E'}
-              />
-            </View>
-            <Text style={[
-              styles.label,
-              selected === service.id && styles.labelActive,
-            ]}>
-              {service.label}
-            </Text>
-            <Text style={[
-              styles.description,
-              selected === service.id && styles.descriptionActive,
-            ]}>
-              {service.description}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        {services.map((service) => {
+          const isActive = selected === service.id;
+          const isMasivo = service.type === 'masivo';
+          
+          return (
+            <TouchableOpacity
+              key={service.id}
+              style={[
+                styles.serviceCard,
+                isActive && styles.serviceCardActive,
+                isMasivo && styles.serviceCardMasivo,
+                isActive && isMasivo && styles.serviceCardMasivoActive,
+              ]}
+              onPress={() => { setSelected(service.id); onSelect(service); }}
+              activeOpacity={0.7}
+            >
+              <View style={[
+                styles.iconContainer,
+                isActive && styles.iconContainerActive,
+                isMasivo && styles.iconContainerMasivo,
+                isActive && isMasivo && styles.iconContainerMasivoActive,
+              ]}>
+                <Ionicons 
+                  name={service.icon} 
+                  size={24} 
+                  color={isActive ? '#FFFFFF' : '#1A3C6E'} 
+                />
+              </View>
+              <Text style={[styles.label, isActive && styles.labelActive]}>
+                {service.label}
+              </Text>
+              <Text style={[styles.price, isActive && styles.priceActive]}>
+                {service.price}
+              </Text>
+              <View style={[
+                styles.badge,
+                isMasivo && styles.badgeMasivo,
+                isActive && styles.badgeActive
+              ]}>
+                <Text style={[
+                  styles.badgeText,
+                  isActive && styles.badgeTextActive
+                ]}>
+                  {service.capacity}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -87,15 +111,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 16,
     marginHorizontal: 16,
-    marginBottom: 8,
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-  },
-  scrollContent: {
-    paddingHorizontal: 8,
   },
   serviceCard: {
     alignItems: 'center',
@@ -104,10 +124,19 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     borderRadius: 12,
     minWidth: 70,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   serviceCardActive: {
     backgroundColor: '#1A3C6E',
+    borderColor: '#D4AF37',
+  },
+  serviceCardMasivo: {
+    borderColor: '#2ECC71',
     borderWidth: 1,
+  },
+  serviceCardMasivoActive: {
+    backgroundColor: '#0F7A4A',
     borderColor: '#D4AF37',
   },
   iconContainer: {
@@ -122,6 +151,12 @@ const styles = StyleSheet.create({
   iconContainerActive: {
     backgroundColor: '#2ECC71',
   },
+  iconContainerMasivo: {
+    backgroundColor: '#E8F5E9',
+  },
+  iconContainerMasivoActive: {
+    backgroundColor: '#F5A623',
+  },
   label: {
     fontSize: 12,
     fontWeight: '600',
@@ -130,11 +165,33 @@ const styles = StyleSheet.create({
   labelActive: {
     color: '#FFFFFF',
   },
-  description: {
-    fontSize: 10,
-    color: '#94A3B8',
+  price: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1A3C6E',
+    marginTop: 2,
   },
-  descriptionActive: {
-    color: '#94A3B8',
+  priceActive: {
+    color: '#F5A623',
+  },
+  badge: {
+    marginTop: 4,
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  badgeMasivo: {
+    backgroundColor: '#2ECC71',
+  },
+  badgeActive: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  badgeText: {
+    fontSize: 8,
+    color: '#64748B',
+  },
+  badgeTextActive: {
+    color: '#FFFFFF',
   },
 });
