@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Dimensions, Platform, Alert, ActivityIndicator } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,17 @@ const { width, height } = Dimensions.get('window');
 const API_BASE = 'http://192.168.1.24:3000';
 const API_MOBILITY = 'http://192.168.1.24:8103/api/v1/mobility';
 
+// ✅ OSRM API (gratuita, sin API Key)
+const OSRM_API = 'https://router.project-osrm.org/route/v1/driving';
+
+// ✅ VEHÍCULOS MOCK (para pruebas)
+const MOCK_VEHICLES = [
+  { id: '1', plate: 'MOTO-001', lat: -17.5080, lng: -63.1650, type: 'MOTO', status: 'available' },
+  { id: '2', plate: 'MOTO-002', lat: -17.5105, lng: -63.1665, type: 'MOTO', status: 'available' },
+  { id: '3', plate: 'MOTO-003', lat: -17.5075, lng: -63.1630, type: 'MOTO', status: 'available' },
+  { id: '4', plate: 'TAXI-001', lat: -17.5090, lng: -63.1620, type: 'TAXI', status: 'available' },
+];
+
 export default function HomeScreen() {
   const [location, setLocation] = useState(null);
   const [origin, setOrigin] = useState('');
@@ -19,20 +30,22 @@ export default function HomeScreen() {
   const [selectedService, setSelectedService] = useState('moto');
   const [selectedServiceLabel, setSelectedServiceLabel] = useState('Moto');
   const [mapOpacity, setMapOpacity] = useState(0.7);
-  const [isMapReady, setIsMapReady] = useState(false);
   const [isSelectingOrigin, setIsSelectingOrigin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [currentTrip, setCurrentTrip] = useState(null);
+  const [vehicles, setVehicles] = useState(MOCK_VEHICLES); // ✅ Usar mock
+  const [destinationCoords, setDestinationCoords] = useState(null);
+  const [originCoords, setOriginCoords] = useState(null);
+  const [showRoute, setShowRoute] = useState(false);
+  const [routeCoords, setRouteCoords] = useState([]);
   const mapRef = useRef(null);
   const [user, setUser] = useState(null);
 
   useEffect(() => {
     const init = async () => {
-      // Obtener usuario
       const userData = await authService.getUser();
       setUser(userData);
 
-      // Obtener ubicación
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permiso de ubicación denegado');
@@ -40,11 +53,85 @@ export default function HomeScreen() {
       }
       let loc = await Location.getCurrentPositionAsync({});
       setLocation(loc);
-      setIsMapReady(true);
+      setOriginCoords({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      });
       setTimeout(() => setMapOpacity(1), 2000);
     };
     init();
   }, []);
+
+  // ✅ GEOCÓDIGO INVERSO (USANDO OSRM)
+  const reverseGeocode = async (lat, lng) => {
+    try {
+      const response = await axios.get(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`
+      );
+      if (response.data && response.data.display_name) {
+        return response.data.display_name.split(',')[0];
+      }
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    } catch (error) {
+      console.warn('⚠️ Error en geocódigo inverso:', error);
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
+  };
+
+  // ✅ OBTENER RUTA CON OSRM (GRATUITO)
+  const fetchRoute = async (originLat, originLng, destLat, destLng) => {
+    try {
+      const url = `${OSRM_API}/${originLng},${originLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+      const response = await axios.get(url);
+      
+      if (response.data && response.data.routes && response.data.routes.length > 0) {
+        const coordinates = response.data.routes[0].geometry.coordinates;
+        const routePoints = coordinates.map(coord => ({
+          latitude: coord[1],
+          longitude: coord[0]
+        }));
+        setRouteCoords(routePoints);
+        setShowRoute(true);
+        console.log('✅ Ruta OSRM calculada:', routePoints.length, 'puntos');
+      }
+    } catch (error) {
+      console.warn('⚠️ Error en OSRM:', error);
+      // Fallback: línea recta
+      setRouteCoords([
+        { latitude: originLat, longitude: originLng },
+        { latitude: destLat, longitude: destLng }
+      ]);
+      setShowRoute(true);
+    }
+  };
+
+  // ✅ SELECCIONAR DESTINO TOCANDO EL MAPA
+  const handleMapPress = async (event) => {
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+    
+    if (isSelectingOrigin) {
+      const address = await reverseGeocode(latitude, longitude);
+      setOrigin(address);
+      setOriginCoords({ latitude, longitude });
+      Alert.alert('📍 Origen seleccionado', `Has seleccionado:\n${address}`);
+    } else {
+      const address = await reverseGeocode(latitude, longitude);
+      setDestination(address);
+      setDestinationCoords({ latitude, longitude });
+      
+      // Calcular ruta si hay origen y destino
+      if (originCoords) {
+        await fetchRoute(
+          originCoords.latitude, originCoords.longitude,
+          latitude, longitude
+        );
+      }
+      
+      Alert.alert('📍 Destino seleccionado', `Has seleccionado:\n${address}`);
+    }
+    
+    setMapOpacity(1);
+  };
 
   const handleServiceSelect = (service) => {
     setSelectedService(service.id);
@@ -64,9 +151,22 @@ export default function HomeScreen() {
     }
   };
 
+  const handleDestinationChange = async (text) => {
+    setDestination(text);
+    if (text.length > 3 && originCoords) {
+      // Simular coordenadas para pruebas
+      const mockCoords = { latitude: -17.5100, longitude: -63.1600 };
+      setDestinationCoords(mockCoords);
+      await fetchRoute(
+        originCoords.latitude, originCoords.longitude,
+        mockCoords.latitude, mockCoords.longitude
+      );
+    }
+  };
+
   const requestTrip = async () => {
-    if (!origin || !destination) {
-      Alert.alert('⚠️ Datos incompletos', 'Por favor, selecciona origen y destino.');
+    if (!destinationCoords) {
+      Alert.alert('⚠️ Destino no seleccionado', 'Por favor, selecciona un destino.');
       return;
     }
 
@@ -84,9 +184,9 @@ export default function HomeScreen() {
         userId: user?.id || 'pasajero-test',
         lat: location.coords.latitude,
         lng: location.coords.longitude,
-        destination: destination,
-        destinationLat: -17.5100,
-        destinationLng: -63.1600,
+        destination: destination || `Destino: ${destinationCoords.latitude.toFixed(4)}, ${destinationCoords.longitude.toFixed(4)}`,
+        destinationLat: destinationCoords.latitude,
+        destinationLng: destinationCoords.longitude,
         vehicleType: vehicleType,
       };
 
@@ -138,11 +238,22 @@ export default function HomeScreen() {
     Alert.alert('✅ Viaje cancelado', 'Tu viaje ha sido cancelado exitosamente.');
   };
 
+  const centerMapOnUser = () => {
+    if (!location) return;
+    mapRef.current?.animateToRegion({
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+      latitudeDelta: 0.005,
+      longitudeDelta: 0.005,
+    }, 500);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.mapContainer}>
         <MapView
           ref={mapRef}
+          provider={PROVIDER_GOOGLE}
           style={styles.map}
           initialRegion={{
             latitude: location?.coords?.latitude || -17.5005,
@@ -152,6 +263,7 @@ export default function HomeScreen() {
           }}
           showsUserLocation={true}
           showsMyLocationButton={true}
+          onPress={handleMapPress}
         >
           {location && (
             <Marker
@@ -163,8 +275,46 @@ export default function HomeScreen() {
               pinColor="#1A3C6E"
             />
           )}
+
+          {destinationCoords && (
+            <Marker
+              coordinate={destinationCoords}
+              title={destination}
+              pinColor="#F5A623"
+            />
+          )}
+
+          {showRoute && routeCoords.length > 1 && (
+            <Polyline
+              coordinates={routeCoords}
+              strokeColor="#1A3C6E"
+              strokeWidth={3}
+            />
+          )}
+
+          {vehicles.map((vehicle) => (
+            <Marker
+              key={vehicle.id}
+              coordinate={{
+                latitude: vehicle.lat,
+                longitude: vehicle.lng,
+              }}
+              title={vehicle.plate}
+              description={`${vehicle.type} - ${vehicle.status}`}
+            >
+              <View style={styles.vehicleMarker}>
+                <Text style={styles.vehicleMarkerText}>
+                  {vehicle.type === 'MOTO' ? '🛵' : '🚗'}
+                </Text>
+              </View>
+            </Marker>
+          ))}
         </MapView>
         <View style={[styles.mapOverlay, { opacity: mapOpacity }]} />
+
+        <TouchableOpacity style={styles.centerBtn} onPress={centerMapOnUser}>
+          <Ionicons name="locate-outline" size={24} color="#1A3C6E" />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.headerFloating}>
@@ -175,7 +325,7 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.searchFloating}>
-        <View style={styles.searchContainer}>
+        <View style={[styles.searchContainer, isSelectingOrigin && styles.searchContainerActive]}>
           <Ionicons name="location-outline" size={20} color="#1A3C6E" />
           <TextInput
             style={styles.searchInput}
@@ -186,14 +336,14 @@ export default function HomeScreen() {
             onFocus={() => { setIsSelectingOrigin(true); handleSearchFocus(); }}
           />
         </View>
-        <View style={[styles.searchContainer, { marginTop: 8 }]}>
+        <View style={[styles.searchContainer, { marginTop: 8 }, !isSelectingOrigin && styles.searchContainerActive]}>
           <Ionicons name="navigate-outline" size={20} color="#2ECC71" />
           <TextInput
             style={styles.searchInput}
-            placeholder="¿A dónde vas?"
+            placeholder="¿A dónde vas? (toca el mapa)"
             placeholderTextColor="#94A3B8"
             value={destination}
-            onChangeText={setDestination}
+            onChangeText={handleDestinationChange}
             onFocus={() => { setIsSelectingOrigin(false); handleSearchFocus(); }}
           />
         </View>
@@ -223,11 +373,7 @@ export default function HomeScreen() {
         </View>
       ) : (
         <TouchableOpacity style={styles.requestBtn} onPress={requestTrip} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text style={styles.requestBtnText}>Solicitar {selectedServiceLabel}</Text>
-          )}
+          {loading ? <ActivityIndicator color="white" /> : <Text style={styles.requestBtnText}>Solicitar {selectedServiceLabel}</Text>}
         </TouchableOpacity>
       )}
 
@@ -246,6 +392,16 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(15, 23, 42, 0.7)',
     pointerEvents: 'none',
+  },
+  centerBtn: {
+    position: 'absolute',
+    bottom: 180,
+    right: 20,
+    backgroundColor: 'white',
+    padding: 12,
+    borderRadius: 30,
+    elevation: 6,
+    zIndex: 20,
   },
   headerFloating: {
     position: 'absolute',
@@ -274,10 +430,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 4,
     elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  searchContainerActive: {
+    borderColor: '#2ECC71',
   },
   searchInput: { flex: 1, paddingVertical: 14, fontSize: 16, color: '#1E293B', marginLeft: 10 },
   serviceSelectorContainer: {
@@ -297,10 +454,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     elevation: 8,
-    shadowColor: '#1A3C6E',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
     zIndex: 10,
   },
   requestBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 17, letterSpacing: 0.5 },
@@ -315,23 +468,15 @@ const styles = StyleSheet.create({
     elevation: 8,
     zIndex: 10,
   },
-  tripHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
+  tripHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   tripTitle: { fontSize: 16, fontWeight: 'bold', color: '#1A3C6E' },
   tripStatus: { fontSize: 14, color: '#2ECC71' },
   tripContent: { gap: 4 },
   tripText: { fontSize: 14, color: '#1E293B' },
-  cancelBtn: {
-    marginTop: 12,
-    backgroundColor: '#FEE2E2',
-    padding: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
+  cancelBtn: { marginTop: 12, backgroundColor: '#FEE2E2', padding: 8, borderRadius: 8, alignItems: 'center' },
   cancelText: { color: '#EF4444', fontWeight: '600' },
+  vehicleMarker: { backgroundColor: '#1A3C6E', borderRadius: 15, padding: 5, borderWidth: 2, borderColor: 'white' },
+  vehicleMarkerText: { fontSize: 16 },
   bottomNavContainer: {
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 30 : 10,
