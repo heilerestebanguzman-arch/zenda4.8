@@ -1,271 +1,203 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Dimensions, Platform, Alert, ActivityIndicator } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE, Polyline } from 'react-native-maps';
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  TextInput,
+  ScrollView,
+} from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import axios from 'axios';
-import { Ionicons } from '@expo/vector-icons';
-import { ServiceSelector } from '../components/ServiceSelector';
-import { BottomNavBar } from '../components/BottomNavBar';
-import { authService } from '../services/authService';
+import { calculateFare } from '../services/fareService';
 
-const { width, height } = Dimensions.get('window');
-const API_BASE = 'http://192.168.1.24:3000';
-const API_MOBILITY = 'http://192.168.1.24:8103/api/v1/mobility';
+// ============================================
+// CONFIGURACIÓN
+// ============================================
+const BASE_URL = 'http://192.168.100.10';
+const API_VEHICLES = `${BASE_URL}:8081/api/v1/vehicles`;
+const API_MOBILITY = `${BASE_URL}:8103/api/v1/mobility`;
 
-// ✅ OSRM API (gratuita, sin API Key)
-const OSRM_API = 'https://router.project-osrm.org/route/v1/driving';
-
-// ✅ VEHÍCULOS MOCK (para pruebas)
-const MOCK_VEHICLES = [
-  { id: '1', plate: 'MOTO-001', lat: -17.5080, lng: -63.1650, type: 'MOTO', status: 'available' },
-  { id: '2', plate: 'MOTO-002', lat: -17.5105, lng: -63.1665, type: 'MOTO', status: 'available' },
-  { id: '3', plate: 'MOTO-003', lat: -17.5075, lng: -63.1630, type: 'MOTO', status: 'available' },
-  { id: '4', plate: 'TAXI-001', lat: -17.5090, lng: -63.1620, type: 'TAXI', status: 'available' },
-];
-
-export default function HomeScreen() {
-  const [location, setLocation] = useState(null);
-  const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('');
-  const [selectedService, setSelectedService] = useState('moto');
-  const [selectedServiceLabel, setSelectedServiceLabel] = useState('Moto');
-  const [mapOpacity, setMapOpacity] = useState(0.7);
-  const [isSelectingOrigin, setIsSelectingOrigin] = useState(true);
+export default function HomeScreen({ navigation }: any) {
+  const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [currentTrip, setCurrentTrip] = useState(null);
-  const [vehicles, setVehicles] = useState(MOCK_VEHICLES); // ✅ Usar mock
-  const [destinationCoords, setDestinationCoords] = useState(null);
-  const [originCoords, setOriginCoords] = useState(null);
-  const [showRoute, setShowRoute] = useState(false);
-  const [routeCoords, setRouteCoords] = useState([]);
-  const mapRef = useRef(null);
-  const [user, setUser] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const [location, setLocation] = useState<any>(null);
+  const [destination, setDestination] = useState('');
+  const [fare, setFare] = useState<number | null>(null);
+  const [errorMsg, setErrorMsg] = useState('');
 
+  // ============================================
+  // OBTENER UBICACIÓN
+  // ============================================
   useEffect(() => {
-    const init = async () => {
-      const userData = await authService.getUser();
-      setUser(userData);
-
+    (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permiso de ubicación denegado');
+        setErrorMsg('Permiso de ubicación denegado');
         return;
       }
-      let loc = await Location.getCurrentPositionAsync({});
-      setLocation(loc);
-      setOriginCoords({
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-      });
-      setTimeout(() => setMapOpacity(1), 2000);
-    };
-    init();
+      let location = await Location.getCurrentPositionAsync({});
+      setLocation(location);
+    })();
+    fetchVehicles();
   }, []);
 
-  // ✅ GEOCÓDIGO INVERSO (USANDO OSRM)
-  const reverseGeocode = async (lat, lng) => {
-    try {
-      const response = await axios.get(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`
-      );
-      if (response.data && response.data.display_name) {
-        return response.data.display_name.split(',')[0];
-      }
-      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    } catch (error) {
-      console.warn('⚠️ Error en geocódigo inverso:', error);
-      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    }
-  };
-
-  // ✅ OBTENER RUTA CON OSRM (GRATUITO)
-  const fetchRoute = async (originLat, originLng, destLat, destLng) => {
-    try {
-      const url = `${OSRM_API}/${originLng},${originLat};${destLng},${destLat}?overview=full&geometries=geojson`;
-      const response = await axios.get(url);
-      
-      if (response.data && response.data.routes && response.data.routes.length > 0) {
-        const coordinates = response.data.routes[0].geometry.coordinates;
-        const routePoints = coordinates.map(coord => ({
-          latitude: coord[1],
-          longitude: coord[0]
-        }));
-        setRouteCoords(routePoints);
-        setShowRoute(true);
-        console.log('✅ Ruta OSRM calculada:', routePoints.length, 'puntos');
-      }
-    } catch (error) {
-      console.warn('⚠️ Error en OSRM:', error);
-      // Fallback: línea recta
-      setRouteCoords([
-        { latitude: originLat, longitude: originLng },
-        { latitude: destLat, longitude: destLng }
-      ]);
-      setShowRoute(true);
-    }
-  };
-
-  // ✅ SELECCIONAR DESTINO TOCANDO EL MAPA
-  const handleMapPress = async (event) => {
-    const { latitude, longitude } = event.nativeEvent.coordinate;
-    
-    if (isSelectingOrigin) {
-      const address = await reverseGeocode(latitude, longitude);
-      setOrigin(address);
-      setOriginCoords({ latitude, longitude });
-      Alert.alert('📍 Origen seleccionado', `Has seleccionado:\n${address}`);
-    } else {
-      const address = await reverseGeocode(latitude, longitude);
-      setDestination(address);
-      setDestinationCoords({ latitude, longitude });
-      
-      // Calcular ruta si hay origen y destino
-      if (originCoords) {
-        await fetchRoute(
-          originCoords.latitude, originCoords.longitude,
-          latitude, longitude
-        );
-      }
-      
-      Alert.alert('📍 Destino seleccionado', `Has seleccionado:\n${address}`);
-    }
-    
-    setMapOpacity(1);
-  };
-
-  const handleServiceSelect = (service) => {
-    setSelectedService(service.id);
-    setSelectedServiceLabel(service.label);
-    setMapOpacity(1);
-  };
-
-  const handleSearchFocus = () => {
-    setMapOpacity(1);
-    if (mapRef.current && location) {
-      mapRef.current.animateToRegion({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.005,
-        longitudeDelta: 0.005,
-      }, 500);
-    }
-  };
-
-  const handleDestinationChange = async (text) => {
-    setDestination(text);
-    if (text.length > 3 && originCoords) {
-      // Simular coordenadas para pruebas
-      const mockCoords = { latitude: -17.5100, longitude: -63.1600 };
-      setDestinationCoords(mockCoords);
-      await fetchRoute(
-        originCoords.latitude, originCoords.longitude,
-        mockCoords.latitude, mockCoords.longitude
-      );
-    }
-  };
-
-  const requestTrip = async () => {
-    if (!destinationCoords) {
-      Alert.alert('⚠️ Destino no seleccionado', 'Por favor, selecciona un destino.');
-      return;
-    }
-
-    if (!location) {
-      Alert.alert('⚠️ Ubicación no disponible', 'No se pudo obtener tu ubicación.');
-      return;
-    }
-
+  // ============================================
+  // OBTENER VEHÍCULOS
+  // ============================================
+  const fetchVehicles = async () => {
     setLoading(true);
     try {
-      const token = await authService.getToken();
-      const vehicleType = selectedService.toUpperCase();
-
-      const payload = {
-        userId: user?.id || 'pasajero-test',
-        lat: location.coords.latitude,
-        lng: location.coords.longitude,
-        destination: destination || `Destino: ${destinationCoords.latitude.toFixed(4)}, ${destinationCoords.longitude.toFixed(4)}`,
-        destinationLat: destinationCoords.latitude,
-        destinationLng: destinationCoords.longitude,
-        vehicleType: vehicleType,
-      };
-
-      console.log('📤 Enviando solicitud a M20:', payload);
-
-      const response = await axios.post(`${API_MOBILITY}/request`, payload, {
-        timeout: 10000,
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-
-      console.log('✅ M20 respondió:', response.data);
-
-      if (response.data.success) {
-        const tripData = response.data.data || response.data;
-        setCurrentTrip({
-          tripId: tripData.trip_id || tripData.id,
-          plate: tripData.vehicle?.plate || tripData.plate || 'MOTO-001',
-          driver: tripData.driver?.name || tripData.driverName || 'Conductor',
-          eta: tripData.eta || tripData.estimated_wait || 4,
-          status: tripData.status || 'pending',
-        });
-
-        Alert.alert(
-          '✅ Viaje Confirmado',
-          `🚗 Vehículo: ${tripData.vehicle?.plate || tripData.plate || 'MOTO-001'}\n` +
-          `👤 Conductor: ${tripData.driver?.name || tripData.driverName || 'Conductor'}\n` +
-          `⏱️ Llegada estimada: ${tripData.eta || tripData.estimated_wait || 4} min\n` +
-          `💰 Tarifa: Bs ${tripData.fare || '3.50'}`,
-          [{ text: 'OK' }]
-        );
-      } else {
-        Alert.alert('❌ Error', response.data.message || 'No se pudo solicitar el viaje.');
-      }
+      const response = await axios.get(API_VEHICLES, { timeout: 8000 });
+      const data = response.data.vehicles || response.data.data || [];
+      setVehicles(data.length > 0 ? data : getMockVehicles());
     } catch (error) {
-      console.error('❌ Error en solicitud:', error);
-      Alert.alert(
-        '❌ Error de Conexión',
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        'No se pudo conectar con el servidor.'
-      );
+      console.warn('Usando vehículos de ejemplo');
+      setVehicles(getMockVehicles());
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const cancelTrip = () => {
-    setCurrentTrip(null);
-    Alert.alert('✅ Viaje cancelado', 'Tu viaje ha sido cancelado exitosamente.');
+  const getMockVehicles = () => [
+    { id: '1', plate: 'MOTO-001', brand: 'Honda', model: 'Wave', type: 'MOTO', status: 'ACTIVE' },
+    { id: '2', plate: 'MOTO-002', brand: 'Yamaha', model: 'T110', type: 'MOTO', status: 'ACTIVE' },
+    { id: '3', plate: 'TAXI-001', brand: 'Toyota', model: 'Corolla', type: 'TAXI', status: 'ACTIVE' },
+  ];
+
+  const onRefresh = () => { setRefreshing(true); fetchVehicles(); };
+
+  // ============================================
+  // SOLICITAR VIAJE
+  // ============================================
+  const requestTrip = async () => {
+    if (requesting) return;
+    if (!location) {
+      Alert.alert('Error', 'No se pudo obtener tu ubicación');
+      return;
+    }
+
+    setRequesting(true);
+
+    try {
+      // Calcular tarifa (si no hay destino, usar fallback)
+      let estimatedFare = 3.50;
+      if (destination) {
+        // Simular coordenadas del destino (por ahora)
+        const destCoords = { lat: -17.4900, lng: -63.1700 };
+        estimatedFare = calculateFare(
+          location.coords.latitude,
+          location.coords.longitude,
+          destCoords.lat,
+          destCoords.lng
+        );
+      }
+
+      // Intentar conectar a M20
+      try {
+        const response = await axios.post(
+          `${API_MOBILITY}/request`,
+          {
+            userId: 'pasajero-test',
+            lat: location.coords.latitude,
+            lng: location.coords.longitude,
+            vehicleType: 'MOTO',
+            destination: destination || 'Sin destino',
+          },
+          { timeout: 5000 }
+        );
+        console.log('✅ M20 respondió:', response.data);
+      } catch (error) {
+        console.warn('⚠️ M20 no disponible, usando fallback');
+      }
+
+      // Mostrar confirmación
+      Alert.alert(
+        '🛵 Solicitar Moto-Taxi',
+        `📍 Origen: ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}\n` +
+        `📍 Destino: ${destination || 'No especificado'}\n` +
+        `💰 Tarifa estimada: Bs ${estimatedFare.toFixed(2)}\n\n` +
+        `¿Confirmar viaje?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: '✅ Confirmar',
+            onPress: () => {
+              Alert.alert(
+                '✅ Viaje Confirmado',
+                'Su moto-taxi está en camino.\nTiempo estimado: 3-5 minutos.',
+                [{ text: 'OK' }]
+              );
+            },
+          },
+        ]
+      );
+
+    } catch (error) {
+      Alert.alert('❌ Error', 'No se pudo solicitar el viaje. Verifica tu conexión.');
+    } finally {
+      setRequesting(false);
+    }
   };
 
-  const centerMapOnUser = () => {
-    if (!location) return;
-    mapRef.current?.animateToRegion({
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-      latitudeDelta: 0.005,
-      longitudeDelta: 0.005,
-    }, 500);
+  // ============================================
+  // CALCULAR TARIFA EN TIEMPO REAL
+  // ============================================
+  const handleDestinationChange = (text: string) => {
+    setDestination(text);
+    if (location && text.length > 3) {
+      // Simular cálculo de tarifa
+      const estimated = calculateFare(
+        location.coords.latitude,
+        location.coords.longitude,
+        -17.4900,
+        -63.1700
+      );
+      setFare(estimated);
+    } else {
+      setFare(null);
+    }
+  };
+
+  const getIcon = (type: string) => {
+    const icons: Record<string, string> = {
+      MOTO: '🏍️',
+      TAXI: '🚖',
+      MICRO: '🚐',
+      MINIBUS: '🚌',
+      BRT: '🚍',
+    };
+    return icons[type] || '🚗';
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
+      {/* HEADER */}
+      <View style={styles.header}>
+        <Text style={styles.title}>🏍️ Transporte ZENDA</Text>
+        <Text style={styles.subtitle}>Warnes - Tu movilidad urbana</Text>
+      </View>
+
+      {/* MAPA */}
       <View style={styles.mapContainer}>
-        <MapView
-          ref={mapRef}
-          provider={PROVIDER_GOOGLE}
-          style={styles.map}
-          initialRegion={{
-            latitude: location?.coords?.latitude || -17.5005,
-            longitude: location?.coords?.longitude || -63.1660,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          }}
-          showsUserLocation={true}
-          showsMyLocationButton={true}
-          onPress={handleMapPress}
-        >
-          {location && (
+        {location ? (
+          <MapView
+            style={styles.map}
+            initialRegion={{
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            }}
+            showsUserLocation={true}
+            showsMyLocationButton={true}
+          >
             <Marker
               coordinate={{
                 latitude: location.coords.latitude,
@@ -274,214 +206,177 @@ export default function HomeScreen() {
               title="Mi ubicación"
               pinColor="#1A3C6E"
             />
-          )}
-
-          {destinationCoords && (
-            <Marker
-              coordinate={destinationCoords}
-              title={destination}
-              pinColor="#F5A623"
-            />
-          )}
-
-          {showRoute && routeCoords.length > 1 && (
-            <Polyline
-              coordinates={routeCoords}
-              strokeColor="#1A3C6E"
-              strokeWidth={3}
-            />
-          )}
-
-          {vehicles.map((vehicle) => (
-            <Marker
-              key={vehicle.id}
-              coordinate={{
-                latitude: vehicle.lat,
-                longitude: vehicle.lng,
-              }}
-              title={vehicle.plate}
-              description={`${vehicle.type} - ${vehicle.status}`}
-            >
-              <View style={styles.vehicleMarker}>
-                <Text style={styles.vehicleMarkerText}>
-                  {vehicle.type === 'MOTO' ? '🛵' : '🚗'}
-                </Text>
-              </View>
-            </Marker>
-          ))}
-        </MapView>
-        <View style={[styles.mapOverlay, { opacity: mapOpacity }]} />
-
-        <TouchableOpacity style={styles.centerBtn} onPress={centerMapOnUser}>
-          <Ionicons name="locate-outline" size={24} color="#1A3C6E" />
-        </TouchableOpacity>
+          </MapView>
+        ) : (
+          <View style={styles.mapLoading}>
+            <ActivityIndicator size="large" color="#1A3C6E" />
+            <Text style={styles.mapLoadingText}>Obteniendo ubicación...</Text>
+          </View>
+        )}
       </View>
 
-      <View style={styles.headerFloating}>
-        <Text style={styles.headerTitle}>ZENDA</Text>
-        <TouchableOpacity style={styles.profileBtn}>
-          <Ionicons name="person-circle-outline" size={36} color="#1A3C6E" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.searchFloating}>
-        <View style={[styles.searchContainer, isSelectingOrigin && styles.searchContainerActive]}>
-          <Ionicons name="location-outline" size={20} color="#1A3C6E" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="¿Desde dónde?"
-            placeholderTextColor="#94A3B8"
-            value={origin}
-            onChangeText={setOrigin}
-            onFocus={() => { setIsSelectingOrigin(true); handleSearchFocus(); }}
-          />
-        </View>
-        <View style={[styles.searchContainer, { marginTop: 8 }, !isSelectingOrigin && styles.searchContainerActive]}>
-          <Ionicons name="navigate-outline" size={20} color="#2ECC71" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="¿A dónde vas? (toca el mapa)"
-            placeholderTextColor="#94A3B8"
-            value={destination}
-            onChangeText={handleDestinationChange}
-            onFocus={() => { setIsSelectingOrigin(false); handleSearchFocus(); }}
-          />
-        </View>
-      </View>
-
-      <View style={styles.serviceSelectorContainer}>
-        <ServiceSelector
-          selectedId={selectedService}
-          onSelect={handleServiceSelect}
+      {/* SELECTOR DE DESTINO */}
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="¿A dónde vas? (ej. Mercado Central)"
+          placeholderTextColor="#999"
+          value={destination}
+          onChangeText={handleDestinationChange}
         />
       </View>
 
-      {currentTrip ? (
-        <View style={styles.tripCard}>
-          <View style={styles.tripHeader}>
-            <Text style={styles.tripTitle}>🏍️ Viaje en curso</Text>
-            <Text style={styles.tripStatus}>En camino</Text>
-          </View>
-          <View style={styles.tripContent}>
-            <Text style={styles.tripText}>🚗 Vehículo: {currentTrip.plate}</Text>
-            <Text style={styles.tripText}>👤 Conductor: {currentTrip.driver}</Text>
-            <Text style={styles.tripText}>⏱️ Llegada: {currentTrip.eta} min</Text>
-          </View>
-          <TouchableOpacity style={styles.cancelBtn} onPress={cancelTrip}>
-            <Text style={styles.cancelText}>Cancelar viaje</Text>
-          </TouchableOpacity>
+      {/* TARIFA ESTIMADA */}
+      {fare !== null && (
+        <View style={styles.fareContainer}>
+          <Text style={styles.fareLabel}>Tarifa estimada:</Text>
+          <Text style={styles.fareAmount}>Bs {fare.toFixed(2)}</Text>
         </View>
-      ) : (
-        <TouchableOpacity style={styles.requestBtn} onPress={requestTrip} disabled={loading}>
-          {loading ? <ActivityIndicator color="white" /> : <Text style={styles.requestBtnText}>Solicitar {selectedServiceLabel}</Text>}
-        </TouchableOpacity>
       )}
 
-      <View style={styles.bottomNavContainer}>
-        <BottomNavBar active="home" onSelect={() => {}} />
-      </View>
-    </View>
+      {/* BOTÓN SOLICITAR */}
+      <TouchableOpacity
+        style={[styles.requestBtn, requesting && styles.requestBtnDisabled]}
+        onPress={requestTrip}
+        disabled={requesting}
+        activeOpacity={0.7}
+      >
+        {requesting ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <ActivityIndicator color="white" size="small" />
+            <Text style={[styles.requestBtnText, { marginLeft: 10 }]}>
+              Buscando moto...
+            </Text>
+          </View>
+        ) : (
+          <Text style={styles.requestBtnText}>🛵 Solicitar Moto-Taxi</Text>
+        )}
+      </TouchableOpacity>
+
+      {/* LISTA DE VEHÍCULOS */}
+      <Text style={styles.sectionTitle}>Vehículos disponibles</Text>
+      {vehicles.map((item) => (
+        <View key={item.id} style={styles.card}>
+          <Text style={styles.icon}>{getIcon(item.type)}</Text>
+          <View style={styles.info}>
+            <Text style={styles.plate}>{item.plate}</Text>
+            <Text style={styles.model}>{item.brand} {item.model}</Text>
+            <View style={styles.statusRow}>
+              <View style={[styles.statusDot, { backgroundColor: '#4CAF50' }]} />
+              <Text style={styles.statusText}>Disponible</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.payBtn}
+            onPress={() => navigation.navigate('Payment', { vehicle: item })}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.payBtnText}>Pagar</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+
+      {/* BOTÓN HISTORIAL */}
+      <TouchableOpacity
+        style={styles.historyBtn}
+        onPress={() => navigation.navigate('History')}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.historyBtnText}>📋 Ver Historial</Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  mapContainer: { ...StyleSheet.absoluteFillObject },
-  map: { ...StyleSheet.absoluteFillObject },
-  mapOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
-    pointerEvents: 'none',
+  container: { flex: 1, backgroundColor: '#f0f4f8', padding: 16 },
+  header: { marginBottom: 12 },
+  title: { fontSize: 26, fontWeight: 'bold', color: '#1A3C6E' },
+  subtitle: { fontSize: 14, color: '#666', marginTop: 4 },
+
+  mapContainer: {
+    height: 300,
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginBottom: 12,
+    backgroundColor: '#e8ecf0',
   },
-  centerBtn: {
-    position: 'absolute',
-    bottom: 180,
-    right: 20,
+  map: { flex: 1 },
+  mapLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapLoadingText: { color: '#666', marginTop: 8 },
+
+  inputContainer: { marginBottom: 12 },
+  input: {
     backgroundColor: 'white',
-    padding: 12,
-    borderRadius: 30,
-    elevation: 6,
-    zIndex: 20,
+    padding: 14,
+    borderRadius: 12,
+    fontSize: 16,
+    color: '#333',
+    elevation: 2,
   },
-  headerFloating: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 30,
-    left: 16,
-    right: 16,
+
+  fareContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    zIndex: 10,
+    backgroundColor: '#1A3C6E',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
   },
-  headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#FFFFFF' },
-  profileBtn: { backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 20, padding: 4 },
-  searchFloating: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 100 : 80,
-    left: 12,
-    right: 12,
-    zIndex: 10,
+  fareLabel: { color: 'white', fontSize: 16 },
+  fareAmount: { color: '#F5A623', fontSize: 24, fontWeight: 'bold' },
+
+  requestBtn: {
+    backgroundColor: '#4CAF50',
+    padding: 18,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginBottom: 16,
+    elevation: 4,
   },
-  searchContainer: {
+  requestBtnDisabled: { backgroundColor: '#9E9E9E' },
+  requestBtnText: { color: 'white', fontWeight: 'bold', fontSize: 18 },
+
+  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#444', marginBottom: 8 },
+
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    elevation: 6,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    elevation: 2,
   },
-  searchContainerActive: {
-    borderColor: '#2ECC71',
-  },
-  searchInput: { flex: 1, paddingVertical: 14, fontSize: 16, color: '#1E293B', marginLeft: 10 },
-  serviceSelectorContainer: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 220 : 200,
-    left: 12,
-    right: 12,
-    zIndex: 10,
-  },
-  requestBtn: {
-    position: 'absolute',
-    bottom: 120,
-    left: 16,
-    right: 16,
+  icon: { fontSize: 34, marginRight: 12 },
+  info: { flex: 1 },
+  plate: { fontSize: 17, fontWeight: 'bold', color: '#1A3C6E' },
+  model: { fontSize: 13, color: '#666', marginTop: 2 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  statusDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
+  statusText: { fontSize: 12, color: '#666' },
+
+  payBtn: {
     backgroundColor: '#1A3C6E',
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    elevation: 8,
-    zIndex: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
-  requestBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 17, letterSpacing: 0.5 },
-  tripCard: {
-    position: 'absolute',
-    bottom: 120,
-    left: 16,
-    right: 16,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: 16,
+  payBtnText: { color: 'white', fontWeight: 'bold', fontSize: 13 },
+
+  historyBtn: {
+    backgroundColor: '#F5A623',
     padding: 16,
-    elevation: 8,
-    zIndex: 10,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 20,
+    elevation: 2,
   },
-  tripHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  tripTitle: { fontSize: 16, fontWeight: 'bold', color: '#1A3C6E' },
-  tripStatus: { fontSize: 14, color: '#2ECC71' },
-  tripContent: { gap: 4 },
-  tripText: { fontSize: 14, color: '#1E293B' },
-  cancelBtn: { marginTop: 12, backgroundColor: '#FEE2E2', padding: 8, borderRadius: 8, alignItems: 'center' },
-  cancelText: { color: '#EF4444', fontWeight: '600' },
-  vehicleMarker: { backgroundColor: '#1A3C6E', borderRadius: 15, padding: 5, borderWidth: 2, borderColor: 'white' },
-  vehicleMarkerText: { fontSize: 16 },
-  bottomNavContainer: {
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 30 : 10,
-    left: 16,
-    right: 16,
-    zIndex: 10,
-  },
+  historyBtnText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 });

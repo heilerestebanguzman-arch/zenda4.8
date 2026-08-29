@@ -1,8 +1,15 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Alert, KeyboardAvoidingView, Platform, ScrollView,
-  ActivityIndicator, SafeAreaView,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import axios from 'axios';
 import {
@@ -11,11 +18,11 @@ import {
   validateEmail,
   validatePassword,
 } from '../../utils/validators';
-import { PasswordInput } from '../../components/PasswordInput';
 
-const API_BASE = 'http://192.168.1.24:3000';
+const API_BASE = 'http://192.168.100.10:8093';
 
 export default function RegisterScreen({ navigation }: any) {
+  // Estado para campos del formulario
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [motherLastName, setMotherLastName] = useState('');
@@ -23,24 +30,16 @@ export default function RegisterScreen({ navigation }: any) {
   const [ci, setCi] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [focusedField, setFocusedField] = useState('');
 
+  // Estado para validaciones en tiempo real
   const [phoneError, setPhoneError] = useState('');
   const [ciError, setCiError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [confirmError, setConfirmError] = useState('');
 
-  const firstNameRef = useRef<TextInput>(null);
-  const lastNameRef = useRef<TextInput>(null);
-  const motherLastNameRef = useRef<TextInput>(null);
-  const phoneRef = useRef<TextInput>(null);
-  const ciRef = useRef<TextInput>(null);
-  const emailRef = useRef<TextInput>(null);
-
-  const validatePhoneField = (text: string) => {
+  // Validar teléfono en tiempo real
+  const handlePhoneChange = (text: string) => {
     setPhone(text);
     if (text.length === 8) {
       if (!validateBolivianPhone(text)) {
@@ -53,7 +52,8 @@ export default function RegisterScreen({ navigation }: any) {
     }
   };
 
-  const validateCIField = (text: string) => {
+  // Validar CI en tiempo real
+  const handleCIChange = (text: string) => {
     setCi(text);
     if (text.length >= 7) {
       if (!validateBolivianCI(text)) {
@@ -66,7 +66,8 @@ export default function RegisterScreen({ navigation }: any) {
     }
   };
 
-  const validateEmailField = (text: string) => {
+  // Validar email en tiempo real
+  const handleEmailChange = (text: string) => {
     setEmail(text);
     if (text.length > 0 && !validateEmail(text)) {
       setEmailError('📧 Email inválido');
@@ -75,39 +76,20 @@ export default function RegisterScreen({ navigation }: any) {
     }
   };
 
-  const validatePasswordField = (text: string) => {
+  // Validar contraseña en tiempo real
+  const handlePasswordChange = (text: string) => {
     setPassword(text);
     if (text.length > 0 && !validatePassword(text)) {
       setPasswordError('🔒 Mínimo 6 caracteres');
     } else {
       setPasswordError('');
     }
-    if (confirmPassword.length > 0) {
-      if (text !== confirmPassword) {
-        setConfirmError('❌ Las contraseñas no coinciden');
-      } else {
-        setConfirmError('');
-      }
-    }
-  };
-
-  const validateConfirmField = (text: string) => {
-    setConfirmPassword(text);
-    if (text.length > 0 && text !== password) {
-      setConfirmError('❌ Las contraseñas no coinciden');
-    } else {
-      setConfirmError('');
-    }
   };
 
   const handleRegister = async () => {
-    if (!firstName || !lastName || !phone || !ci || !email || !password || !confirmPassword) {
+    // Validaciones finales
+    if (!firstName || !lastName || !phone || !ci || !email || !password) {
       Alert.alert('⚠️ Campos incompletos', 'Por favor completa todos los datos.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert('⚠️ Contraseñas no coinciden', 'Las contraseñas deben ser idénticas.');
       return;
     }
 
@@ -147,22 +129,18 @@ export default function RegisterScreen({ navigation }: any) {
         role: 'citizen',
       });
 
-      console.log('✅ Registro exitoso:', response.data);
-
       if (response.data.success) {
         Alert.alert(
           '🎉 ¡Bienvenido a Zenda!',
           'Tu cuenta ha sido creada exitosamente.\nAhora puedes iniciar sesión.',
           [{ text: 'Iniciar Sesión', onPress: () => navigation.navigate('Login') }]
         );
-      } else {
-        Alert.alert('❌ Error', response.data.message || 'Error al registrar');
       }
     } catch (error: any) {
-      console.error('❌ Error en registro:', error);
+      console.error('Error en registro:', error);
       Alert.alert(
         '❌ Error de Registro',
-        error.response?.data?.error || error.response?.data?.message || 'No se pudo procesar tu cuenta.'
+        error.response?.data?.message || 'No se pudo procesar tu cuenta. Intenta de nuevo.'
       );
     } finally {
       setLoading(false);
@@ -170,320 +148,196 @@ export default function RegisterScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContainer}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.headerContainer}>
-            <View style={styles.logoBadge}>
-              <Text style={styles.logoSymbol}>Z</Text>
-              <View style={styles.pulseDot} />
-            </View>
-            <Text style={styles.title}>ZENDA</Text>
-            <Text style={styles.subtitle}>Crea tu cuenta de pasajero</Text>
-          </View>
+        <View style={styles.headerContainer}>
+          <Text style={styles.title}>🏍️ ZENDA</Text>
+          <Text style={styles.subtitle}>Crea tu cuenta de pasajero</Text>
+        </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Crear Cuenta</Text>
-            <Text style={styles.cardSubtitle}>
-              Únete a la revolución de la movilidad urbana
+        <View style={styles.formCard}>
+          {/* Nombres y Apellidos */}
+          <Text style={styles.label}>📝 Nombres</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ej. Juan Carlos"
+            placeholderTextColor="#999"
+            value={firstName}
+            onChangeText={setFirstName}
+          />
+
+          <Text style={styles.label}>📝 Apellido Paterno</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ej. Pérez"
+            placeholderTextColor="#999"
+            value={lastName}
+            onChangeText={setLastName}
+          />
+
+          <Text style={styles.label}>📝 Apellido Materno</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ej. Rodríguez"
+            placeholderTextColor="#999"
+            value={motherLastName}
+            onChangeText={setMotherLastName}
+          />
+
+          {/* Teléfono con prefijo +591 */}
+          <Text style={styles.label}>📱 Número de Celular</Text>
+          <View style={styles.phoneContainer}>
+            <View style={styles.prefixBox}>
+              <Text style={styles.prefixText}>🇧🇴 +591</Text>
+            </View>
+            <TextInput
+              style={[styles.phoneInput, phoneError ? styles.inputError : null]}
+              placeholder="78912345"
+              placeholderTextColor="#999"
+              value={phone}
+              onChangeText={handlePhoneChange}
+              keyboardType="phone-pad"
+              maxLength={8}
+            />
+          </View>
+          {phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
+
+          {/* Cédula de Identidad */}
+          <Text style={styles.label}>🪪 Cédula de Identidad</Text>
+          <TextInput
+            style={[styles.input, ciError ? styles.inputError : null]}
+            placeholder="1234567"
+            placeholderTextColor="#999"
+            value={ci}
+            onChangeText={handleCIChange}
+            keyboardType="numeric"
+            maxLength={8}
+          />
+          {ciError ? <Text style={styles.errorText}>{ciError}</Text> : null}
+
+          {/* Correo Electrónico */}
+          <Text style={styles.label}>📧 Correo electrónico</Text>
+          <TextInput
+            style={[styles.input, emailError ? styles.inputError : null]}
+            placeholder="tucorreo@email.com"
+            placeholderTextColor="#999"
+            value={email}
+            onChangeText={handleEmailChange}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+
+          {/* Contraseña */}
+          <Text style={styles.label}>🔒 Contraseña</Text>
+          <TextInput
+            style={[styles.input, passwordError ? styles.inputError : null]}
+            placeholder="Mínimo 6 caracteres"
+            placeholderTextColor="#999"
+            value={password}
+            onChangeText={handlePasswordChange}
+            secureTextEntry
+          />
+          {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+
+          {/* Botón de Registro */}
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.buttonText}>🚀 Registrarse en Zenda</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Link a Login */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Login')}
+            style={styles.linkContainer}
+          >
+            <Text style={styles.linkText}>
+              ¿Ya tienes una cuenta? <Text style={styles.linkBold}>Inicia sesión</Text>
             </Text>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Nombres</Text>
-              <TextInput
-                ref={firstNameRef}
-                style={[styles.input, focusedField === 'firstName' && styles.inputFocused]}
-                placeholder="Juan Carlos"
-                placeholderTextColor="#94A3B8"
-                value={firstName}
-                onChangeText={setFirstName}
-                onFocus={() => setFocusedField('firstName')}
-                onBlur={() => setFocusedField('')}
-                returnKeyType="next"
-                onSubmitEditing={() => lastNameRef.current?.focus()}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Apellido Paterno</Text>
-              <TextInput
-                ref={lastNameRef}
-                style={[styles.input, focusedField === 'lastName' && styles.inputFocused]}
-                placeholder="Pérez"
-                placeholderTextColor="#94A3B8"
-                value={lastName}
-                onChangeText={setLastName}
-                onFocus={() => setFocusedField('lastName')}
-                onBlur={() => setFocusedField('')}
-                returnKeyType="next"
-                onSubmitEditing={() => motherLastNameRef.current?.focus()}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Apellido Materno</Text>
-              <TextInput
-                ref={motherLastNameRef}
-                style={[styles.input, focusedField === 'motherLastName' && styles.inputFocused]}
-                placeholder="Rodríguez"
-                placeholderTextColor="#94A3B8"
-                value={motherLastName}
-                onChangeText={setMotherLastName}
-                onFocus={() => setFocusedField('motherLastName')}
-                onBlur={() => setFocusedField('')}
-                returnKeyType="next"
-                onSubmitEditing={() => phoneRef.current?.focus()}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Celular</Text>
-              <View style={styles.phoneContainer}>
-                <View style={styles.prefixBox}>
-                  <Text style={styles.prefixText}>🇧🇴 +591</Text>
-                </View>
-                <TextInput
-                  ref={phoneRef}
-                  style={[
-                    styles.phoneInput,
-                    phoneError ? styles.inputError : null,
-                    focusedField === 'phone' && styles.inputFocused
-                  ]}
-                  placeholder="78912345"
-                  placeholderTextColor="#94A3B8"
-                  value={phone}
-                  onChangeText={validatePhoneField}
-                  keyboardType="phone-pad"
-                  maxLength={8}
-                  onFocus={() => setFocusedField('phone')}
-                  onBlur={() => setFocusedField('')}
-                  returnKeyType="next"
-                  onSubmitEditing={() => ciRef.current?.focus()}
-                />
-              </View>
-              {phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Cédula de Identidad</Text>
-              <TextInput
-                ref={ciRef}
-                style={[
-                  styles.input,
-                  ciError ? styles.inputError : null,
-                  focusedField === 'ci' && styles.inputFocused
-                ]}
-                placeholder="1234567"
-                placeholderTextColor="#94A3B8"
-                value={ci}
-                onChangeText={validateCIField}
-                keyboardType="numeric"
-                maxLength={8}
-                onFocus={() => setFocusedField('ci')}
-                onBlur={() => setFocusedField('')}
-                returnKeyType="next"
-                onSubmitEditing={() => emailRef.current?.focus()}
-              />
-              {ciError ? <Text style={styles.errorText}>{ciError}</Text> : null}
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Correo electrónico</Text>
-              <TextInput
-                ref={emailRef}
-                style={[
-                  styles.input,
-                  emailError ? styles.inputError : null,
-                  focusedField === 'email' && styles.inputFocused
-                ]}
-                placeholder="tucorreo@zenda.com"
-                placeholderTextColor="#94A3B8"
-                value={email}
-                onChangeText={validateEmailField}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                onFocus={() => setFocusedField('email')}
-                onBlur={() => setFocusedField('')}
-                returnKeyType="next"
-                onSubmitEditing={() => {}}
-              />
-              {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Contraseña</Text>
-              <PasswordInput
-                placeholder="Mínimo 6 caracteres"
-                value={password}
-                onChangeText={validatePasswordField}
-                style={passwordError ? styles.inputError : null}
-              />
-              {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Confirmar Contraseña</Text>
-              <PasswordInput
-                placeholder="Repite tu contraseña"
-                value={confirmPassword}
-                onChangeText={validateConfirmField}
-                style={confirmError ? styles.inputError : null}
-              />
-              {confirmError ? <Text style={styles.errorText}>{confirmError}</Text> : null}
-            </View>
-
-            <TouchableOpacity
-              style={[styles.buttonAction, loading && styles.buttonDisabled]}
-              onPress={handleRegister}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              {loading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={styles.buttonText}>  crear cuenta</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              onPress={() => navigation.navigate('Login')}
-              style={styles.linkContainer}
-            >
-              <Text style={styles.linkText}>
-                ¿Ya tienes una cuenta? <Text style={styles.linkBold}>Inicia sesión</Text>
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F172A' },
-  keyboardView: { flex: 1 },
+  container: { flex: 1, backgroundColor: '#f0f4f8' },
   scrollContainer: { flexGrow: 1, justifyContent: 'center', padding: 20 },
-  
   headerContainer: { alignItems: 'center', marginBottom: 20 },
-  logoBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: '#1A3C6E',
+  title: { fontSize: 36, fontWeight: '900', color: '#1A3C6E', letterSpacing: 1 },
+  subtitle: { fontSize: 16, color: '#555', marginTop: 5, fontWeight: '500' },
+  formCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  label: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 6, marginLeft: 2 },
+  input: {
+    backgroundColor: '#f9f9f9',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#e1e8ed',
+    fontSize: 16,
+    color: '#333',
+  },
+  inputError: { borderColor: '#FF5722', borderWidth: 2 },
+  errorText: { color: '#FF5722', fontSize: 12, marginTop: -10, marginBottom: 8, marginLeft: 4 },
+  phoneContainer: { flexDirection: 'row', marginBottom: 15 },
+  prefixBox: {
+    backgroundColor: '#eef2f7',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#2ECC71',
-    elevation: 6,
-    shadowColor: '#2ECC71',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    borderColor: '#e1e8ed',
+    marginRight: 8,
   },
-  logoSymbol: { fontSize: 28, fontWeight: '900', color: '#FFFFFF' },
-  pulseDot: {
-    position: 'absolute',
-    bottom: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#2ECC71',
-  },
-  title: { fontSize: 28, fontWeight: '900', color: '#FFFFFF', letterSpacing: 3 },
-  subtitle: { fontSize: 13, color: '#94A3B8', marginTop: 2, fontWeight: '500', letterSpacing: 1 },
-  
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-  },
-  cardTitle: { fontSize: 22, fontWeight: '800', color: '#0F172A', marginBottom: 4 },
-  cardSubtitle: { fontSize: 13, color: '#64748B', marginBottom: 20, lineHeight: 18 },
-  
-  inputContainer: { marginBottom: 14 },
-  label: { fontSize: 13, fontWeight: '600', color: '#334155', marginBottom: 4 },
-  
-  input: {
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    fontSize: 15,
-    color: '#0F172A',
-  },
-  inputFocused: {
-    borderColor: '#2ECC71',
-    borderWidth: 2,
-    shadowColor: '#2ECC71',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  inputError: { borderColor: '#EF4444', borderWidth: 2 },
-  errorText: { color: '#EF4444', fontSize: 12, marginTop: 4, marginLeft: 4 },
-  
-  phoneContainer: { flexDirection: 'row', alignItems: 'center' },
-  prefixBox: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    marginRight: 10,
-  },
-  prefixText: { fontSize: 14, fontWeight: '600', color: '#1E293B' },
+  prefixText: { fontSize: 15, fontWeight: 'bold', color: '#333' },
   phoneInput: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    fontSize: 15,
-    color: '#0F172A',
+    backgroundColor: '#f9f9f9',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e1e8ed',
+    fontSize: 16,
+    color: '#333',
   },
-  
-  buttonAction: {
-    backgroundColor: '#2ECC71',
-    paddingVertical: 18,
-    borderRadius: 16,
+  button: {
+    backgroundColor: '#1A3C6E',
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 8,
-    shadowColor: '#2ECC71',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    marginTop: 10,
+    elevation: 2,
   },
-  buttonDisabled: { backgroundColor: '#94A3B8', shadowOpacity: 0 },
-  buttonText: { 
-    color: '#FFFFFF', 
-    fontWeight: '700', 
-    fontSize: 17, 
-    letterSpacing: 0.5 
-  },
-  
+  buttonDisabled: { backgroundColor: '#9E9E9E' },
+  buttonText: { color: '#ffffff', fontWeight: 'bold', fontSize: 17 },
   linkContainer: { marginTop: 20, alignItems: 'center' },
-  linkText: { color: '#64748B', fontSize: 14 },
-  linkBold: { color: '#1A3C6E', fontWeight: '700' },
+  linkText: { color: '#666', fontSize: 14 },
+  linkBold: { color: '#1A3C6E', fontWeight: 'bold' },
 });
