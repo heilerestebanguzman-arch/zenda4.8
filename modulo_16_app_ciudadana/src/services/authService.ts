@@ -1,57 +1,75 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
+// Configuración con IP fija para red local
 const API_BASE = 'http://192.168.100.10:8093';
+const API_USERS = 'http://192.168.100.10:3000';
 
 export const authService = {
-  saveSession: async (token: string, user: any) => {
+  // ✅ Método para guardar sesión (requerido por LoginScreen)
+  async saveSession(token: string, user: any) {
     try {
-      await AsyncStorage.setItem('@zenda_access_token', token);
-      await AsyncStorage.setItem('@zenda_user', JSON.stringify(user));
-      console.log('✅ Sesión guardada');
+      await AsyncStorage.setItem('auth_token', token);
+      await AsyncStorage.setItem('user_data', JSON.stringify(user));
+      return { success: true };
     } catch (error) {
-      console.error('Error al guardar sesión:', error);
+      console.error('Error guardando sesión:', error);
+      return { success: false, error: 'No se pudo guardar la sesión' };
     }
   },
 
-  getToken: async (): Promise<string | null> => {
+  async login(email: string, password: string) {
     try {
-      return await AsyncStorage.getItem('@zenda_access_token');
-    } catch (error) {
-      console.error('Error al obtener token:', error);
-      return null;
-    }
-  },
-
-  getUser: async (): Promise<any | null> => {
-    try {
-      const userStr = await AsyncStorage.getItem('@zenda_user');
-      return userStr ? JSON.parse(userStr) : null;
-    } catch (error) {
-      console.error('Error al obtener usuario:', error);
-      return null;
-    }
-  },
-
-  validateToken: async (token: string): Promise<boolean> => {
-    try {
-      const response = await axios.get(`${API_BASE}/api/v1/auth/verify`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await axios.post(`${API_BASE}/api/v1/auth/login`, {
+        email,
+        password,
       });
-      return response.data.success === true;
-    } catch (error) {
-      console.warn('⚠️ Token inválido');
-      return false;
+      if (response.data && response.data.accessToken) {
+        // Guardar sesión automáticamente
+        await this.saveSession(response.data.accessToken, response.data.user);
+        return { success: true, token: response.data.accessToken, user: response.data.user };
+      }
+      return { success: false, error: 'Credenciales inválidas' };
+    } catch (error: any) {
+      console.error('Error en login:', error.message);
+      return { 
+        success: false, 
+        error: error.response?.data?.message || 'Error de conexión con el servidor' 
+      };
     }
   },
 
-  logout: async () => {
+  async register(userData: any) {
     try {
-      await AsyncStorage.removeItem('@zenda_access_token');
-      await AsyncStorage.removeItem('@zenda_user');
-      console.log('✅ Sesión cerrada');
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error);
+      const response = await axios.post(`${API_USERS}/api/v1/users/register`, userData);
+      return { success: true, data: response.data };
+    } catch (error: any) {
+      console.error('Error en registro:', error.message);
+      return { 
+        success: false, 
+        error: error.response?.data?.message || 'Error en el registro' 
+      };
     }
+  },
+
+  async getToken() {
+    return await AsyncStorage.getItem('auth_token');
+  },
+
+  async getUser() {
+    const userData = await AsyncStorage.getItem('user_data');
+    return userData ? JSON.parse(userData) : null;
+  },
+
+  async isAuthenticated() {
+    const token = await this.getToken();
+    return !!token;
+  },
+
+  async logout() {
+    await AsyncStorage.removeItem('auth_token');
+    await AsyncStorage.removeItem('user_data');
   }
 };
+
+export default authService;

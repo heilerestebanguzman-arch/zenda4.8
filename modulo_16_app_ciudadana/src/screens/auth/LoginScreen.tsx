@@ -7,13 +7,14 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import axios from 'axios';
+import { useNavigation } from '@react-navigation/native';
 import { authService } from '../../services/authService';
 
-const API_BASE = 'http://192.168.100.10:8093';
-
-export default function LoginScreen({ navigation }: any) {
+export default function LoginScreen() {
+  const navigation = useNavigation();
   const [email, setEmail] = useState('admin@zenda.com');
   const [password, setPassword] = useState('admin123');
   const [loading, setLoading] = useState(false);
@@ -26,109 +27,149 @@ export default function LoginScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE}/api/v1/auth/login`, {
-        email,
-        password,
-      });
-
-      const { token, user } = response.data.data;
+      console.log('🔥 Login presionado con email:', email);
       
-      // Guardar sesión
-      await authService.saveSession(token, user);
+      const result = await authService.login(email, password);
       
-      Alert.alert('✅ Éxito', 'Inicio de sesión exitoso');
-      // La navegación se maneja automáticamente en App.tsx
+      if (result.success) {
+        console.log('✅ Login exitoso, navegando a Home...');
+        // ✅ Navegación correcta para React Navigation v6
+        navigation.replace('Home');
+        // O también funciona:
+        // navigation.reset({
+        //   index: 0,
+        //   routes: [{ name: 'Home' }],
+        // });
+      } else {
+        Alert.alert('Error de acceso', result.error || 'Credenciales incorrectas');
+      }
     } catch (error: any) {
-      Alert.alert(
-        '❌ Error',
-        error.response?.data?.message || 'Credenciales incorrectas'
-      );
+      console.error('❌ Error en login:', error);
+      Alert.alert('Error', 'Ocurrió un error al iniciar sesión');
     } finally {
       setLoading(false);
     }
   };
 
+  const goToRegister = () => {
+    navigation.navigate('Register' as never);
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>🚗 ZENDA</Text>
-      <Text style={styles.subtitle}>Inicia sesión en tu cuenta</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.card}>
+        <Text style={styles.title}>ZENDA</Text>
+        <Text style={styles.subtitle}>Movilidad Urbana Inteligente</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-      />
+        <View style={styles.form}>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#94A3B8"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Contraseña"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
+          <TextInput
+            style={styles.input}
+            placeholder="Contraseña"
+            placeholderTextColor="#94A3B8"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator color="white" />
-        ) : (
-          <Text style={styles.buttonText}>Iniciar Sesión</Text>
-        )}
-      </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.buttonText}>Ingresar a Zenda</Text>
+            )}
+          </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-        <Text style={styles.registerText}>¿No tienes cuenta? Regístrate</Text>
-      </TouchableOpacity>
-    </View>
+          <TouchableOpacity onPress={goToRegister}>
+            <Text style={styles.registerText}>
+              ¿No tienes una cuenta? <Text style={styles.registerLink}>Regístrate aquí</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#1A3C6E',
     justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
-    backgroundColor: '#f0f4f8',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 32,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   title: {
-    fontSize: 36,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#1A3C6E',
     textAlign: 'center',
-    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 14,
+    color: '#64748B',
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
+  },
+  form: {
+    gap: 16,
   },
   input: {
-    backgroundColor: 'white',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
     padding: 14,
-    borderRadius: 10,
-    marginBottom: 12,
     fontSize: 16,
+    color: '#1E293B',
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#E2E8F0',
   },
   button: {
     backgroundColor: '#1A3C6E',
+    borderRadius: 12,
     padding: 16,
-    borderRadius: 10,
     alignItems: 'center',
     marginTop: 8,
   },
   buttonText: {
-    color: 'white',
-    fontSize: 18,
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: 'bold',
   },
   registerText: {
-    color: '#1A3C6E',
     textAlign: 'center',
+    color: '#64748B',
     marginTop: 16,
-    fontSize: 14,
+  },
+  registerLink: {
+    color: '#1A3C6E',
+    fontWeight: 'bold',
   },
 });

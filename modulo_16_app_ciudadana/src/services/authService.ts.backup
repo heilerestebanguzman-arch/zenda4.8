@@ -1,0 +1,56 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+
+const API_BASE = 'http://192.168.100.10:3000';
+
+export const authService = {
+  async login(email: string, password: string) {
+    try {
+      const response = await axios.post(`${API_BASE}/api/auth/login`, {
+        email,
+        password,
+      });
+      
+      if (response.data.success) {
+        const { token, user } = response.data.data;
+        await AsyncStorage.setItem('authToken', token);
+        await AsyncStorage.setItem('userData', JSON.stringify(user));
+        return { success: true, user };
+      }
+      return { success: false, message: response.data.message };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.message || 'Error de conexión' };
+    }
+  },
+
+  async register(userData: any) {
+    try {
+      const response = await axios.post(`${API_BASE}/api/auth/register`, userData);
+      if (response.data.success) {
+        return { success: true, data: response.data.data };
+      }
+      return { success: false, message: response.data.message };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.message || 'Error de registro' };
+    }
+  },
+
+  async logout() {
+    await AsyncStorage.removeItem('authToken');
+    await AsyncStorage.removeItem('userData');
+  },
+
+  async getToken() {
+    return await AsyncStorage.getItem('authToken');
+  },
+
+  async getUser() {
+    const userData = await AsyncStorage.getItem('userData');
+    return userData ? JSON.parse(userData) : null;
+  },
+
+  async isAuthenticated() {
+    const token = await this.getToken();
+    return !!token;
+  }
+};
