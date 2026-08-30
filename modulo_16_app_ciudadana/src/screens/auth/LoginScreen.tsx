@@ -33,13 +33,11 @@ export default function LoginScreen() {
       
       if (result.success) {
         console.log('✅ Login exitoso, navegando a Home...');
-        // ✅ Navegación correcta para React Navigation v6
-        navigation.replace('Home');
-        // O también funciona:
-        // navigation.reset({
-        //   index: 0,
-        //   routes: [{ name: 'Home' }],
-        // });
+        // ✅ Usar reset para navegación correcta
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Home' }],
+        });
       } else {
         Alert.alert('Error de acceso', result.error || 'Credenciales incorrectas');
       }
