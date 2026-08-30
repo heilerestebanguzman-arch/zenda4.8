@@ -7,6 +7,7 @@ import {
   Alert,
   ScrollView,
   TextInput,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { authService } from '../services/authService';
@@ -18,6 +19,7 @@ export default function ProfileScreen({ navigation }: any) {
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadUserData();
@@ -28,6 +30,12 @@ export default function ProfileScreen({ navigation }: any) {
     setUser(userData);
     setName(userData?.full_name || userData?.name || '');
     setPhone(userData?.phone || '');
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadUserData();
+    setRefreshing(false);
   };
 
   const handleLogout = async () => {
@@ -53,6 +61,14 @@ export default function ProfileScreen({ navigation }: any) {
     setIsEditing(false);
   };
 
+  const getRoleLabel = (role: string) => {
+    switch(role) {
+      case 'admin': return 'Administrador';
+      case 'citizen': return 'Ciudadano';
+      default: return 'Usuario';
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -62,13 +78,23 @@ export default function ProfileScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
             <Ionicons name="person" size={60} color="#FFFFFF" />
           </View>
           <Text style={styles.userName}>{user?.full_name || user?.name || 'Usuario'}</Text>
           <Text style={styles.userEmail}>{user?.email || 'usuario@email.com'}</Text>
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleText}>{getRoleLabel(user?.role || 'citizen')}</Text>
+          </View>
         </View>
 
         <View style={styles.infoCard}>
@@ -137,6 +163,11 @@ export default function ProfileScreen({ navigation }: any) {
           <Ionicons name="log-out-outline" size={20} color="#EF4444" />
           <Text style={styles.logoutText}>Cerrar Sesión</Text>
         </TouchableOpacity>
+
+        <View style={styles.versionContainer}>
+          <Text style={styles.versionText}>ZENDA v4.8.0</Text>
+          <Text style={styles.versionSubtext}>Movilidad Urbana Inteligente</Text>
+        </View>
       </ScrollView>
 
       <View style={styles.bottomNavContainer}>
@@ -150,7 +181,10 @@ export default function ProfileScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -161,27 +195,159 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
+    zIndex: 10,
   },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: '#1A3C6E' },
-  content: { padding: 20 },
-  avatarContainer: { alignItems: 'center', marginBottom: 24 },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#1A3C6E', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  userName: { fontSize: 20, fontWeight: '600', color: '#1E293B' },
-  userEmail: { fontSize: 14, color: '#94A3B8' },
-  infoCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 16 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#1E293B', marginBottom: 12 },
-  field: { marginBottom: 12 },
-  fieldLabel: { fontSize: 12, color: '#94A3B8', marginBottom: 4 },
-  fieldValue: { fontSize: 16, color: '#1E293B', paddingVertical: 8 },
-  fieldInput: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, padding: 10, fontSize: 16, color: '#1E293B' },
-  saveBtn: { backgroundColor: '#1A3C6E', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 },
-  saveBtnText: { color: '#FFFFFF', fontWeight: '600', fontSize: 16 },
-  statsCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 16 },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around' },
-  statItem: { alignItems: 'center' },
-  statNumber: { fontSize: 20, fontWeight: '700', color: '#1A3C6E' },
-  statLabel: { fontSize: 12, color: '#94A3B8', marginTop: 4 },
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FEE2E2', padding: 14, borderRadius: 12, marginTop: 8 },
-  logoutText: { color: '#EF4444', fontWeight: '600', fontSize: 16, marginLeft: 8 },
-  bottomNavContainer: { position: 'absolute', bottom: 20, left: 16, right: 16, zIndex: 10 },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1A3C6E',
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 120, // ✅ ESPACIO EXTRA PARA QUE NO LO TAPE LA BARRA
+  },
+  avatarContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#1A3C6E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  userName: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  userEmail: {
+    fontSize: 14,
+    color: '#94A3B8',
+  },
+  roleBadge: {
+    marginTop: 8,
+    backgroundColor: '#1A3C6E',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  roleText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  infoCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 12,
+  },
+  field: {
+    marginBottom: 12,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginBottom: 4,
+  },
+  fieldValue: {
+    fontSize: 16,
+    color: '#1E293B',
+    paddingVertical: 8,
+  },
+  fieldInput: {
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 16,
+    color: '#1E293B',
+  },
+  saveBtn: {
+    backgroundColor: '#1A3C6E',
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  saveBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  statsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A3C6E',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 4,
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEE2E2',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  logoutText: {
+    color: '#EF4444',
+    fontWeight: '600',
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  versionContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  versionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  versionSubtext: {
+    fontSize: 12,
+    color: '#CBD5E1',
+    marginTop: 2,
+  },
+  bottomNavContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 16,
+    right: 16,
+    zIndex: 20,
+  },
 });
+
+export default ProfileScreen;
