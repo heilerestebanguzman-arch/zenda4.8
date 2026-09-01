@@ -27,9 +27,8 @@ export default function LoginScreen() {
   const [loadingText, setLoadingText] = useState('Ingresar a Zenda');
   const [error, setError] = useState('');
   
-  // ✅ Animaciones para feedback visual
+  // ✅ Animación de shake para errores
   const shakeAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     const loadLastEmail = async () => {
@@ -45,7 +44,7 @@ export default function LoginScreen() {
     loadLastEmail();
   }, []);
 
-  // ✅ Animación de error
+  // ✅ Animación de shake
   const shakeError = () => {
     Animated.sequence([
       Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
@@ -56,7 +55,6 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
-    // ✅ Validación defensiva
     if (!email.trim() || !password.trim()) {
       setError('Por favor ingresa tu correo y contraseña.');
       shakeError();
@@ -64,7 +62,6 @@ export default function LoginScreen() {
       return;
     }
 
-    // ✅ Validación de formato de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
       setError('Formato de correo inválido.');
@@ -74,50 +71,38 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
-    setLoadingText('Validando credenciales...');
+    setLoadingText('Validando...');
     setError('');
 
     try {
       console.log('🔥 Login presionado con email:', email);
 
       // ✅ Feedback progresivo
-      const progressSteps = [
-        { text: 'Verificando usuario...', delay: 500 },
-        { text: 'Cargando perfil...', delay: 1200 },
-        { text: '¡Bienvenido!', delay: 1800 },
-      ];
-
-      progressSteps.forEach((step, index) => {
-        setTimeout(() => {
-          setLoadingText(step.text);
-        }, step.delay);
-      });
+      setTimeout(() => setLoadingText('Verificando usuario...'), 400);
+      setTimeout(() => setLoadingText('Cargando perfil...'), 800);
 
       const result = await authService.login(email.trim(), password);
 
       if (result.success) {
-        // ✅ Guardar email para próximas veces
+        setLoadingText('¡Bienvenido!');
         await AsyncStorage.setItem(LAST_EMAIL_KEY, email.trim());
 
-        // ✅ Navegación limpia y robusta
         setTimeout(() => {
-          // Usamos replace para evitar acumulación en el stack
-          navigation.replace('Home');
-        }, 400);
-        
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Home' }],
+          });
+        }, 300);
       } else {
-        setError('Credenciales incorrectas o usuario no registrado.');
+        setError('Credenciales incorrectas. Verifica tu contraseña.');
         shakeError();
-        Alert.alert('❌ Error de acceso', 'Credenciales incorrectas o usuario no registrado. Verifica tus datos o regístrate.');
+        Alert.alert('❌ Error de acceso', result.error || 'Credenciales incorrectas. Verifica tu contraseña.');
       }
     } catch (error: any) {
       console.error('❌ Error en login:', error);
       setError('Error de conexión con el servidor.');
       shakeError();
-      Alert.alert(
-        '❌ Error de red',
-        'No se pudo conectar con el servidor. Verifica tu conexión a internet.'
-      );
+      Alert.alert('❌ Error de red', 'No se pudo conectar con el servidor backend.');
     } finally {
       setLoading(false);
       setLoadingText('Ingresar a Zenda');
@@ -136,22 +121,17 @@ export default function LoginScreen() {
       <Animated.View 
         style={[
           styles.card,
-          {
-            transform: [{ translateX: shakeAnim }],
-            opacity: fadeAnim,
-          }
+          { transform: [{ translateX: shakeAnim }] }
         ]}
       >
-        {/* ✅ Logo y título con animación */}
         <View style={styles.logoContainer}>
           <View style={styles.logoIcon}>
-            <Ionicons name="car-sport" size={40} color="#FFFFFF" />
+            <Ionicons name="car-sport" size={32} color="#FFFFFF" />
           </View>
           <Text style={styles.title}>ZENDA</Text>
         </View>
         <Text style={styles.subtitle}>Movilidad Urbana Inteligente</Text>
 
-        {/* ✅ Indicador de error visual */}
         {error ? (
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle" size={16} color="#EF4444" />
@@ -202,7 +182,10 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={[
+              styles.button,
+              loading && styles.buttonLoading
+            ]}
             onPress={handleLogin}
             disabled={loading}
             activeOpacity={0.8}
@@ -222,10 +205,9 @@ export default function LoginScreen() {
               ¿No tienes una cuenta? <Text style={styles.registerLink}>Regístrate aquí</Text>
             </Text>
           </TouchableOpacity>
-
-          {/* ✅ Versión en footer */}
-          <Text style={styles.versionText}>ZENDA v4.8.0</Text>
         </View>
+
+        <Text style={styles.versionText}>ZENDA v4.8.0</Text>
       </Animated.View>
     </KeyboardAvoidingView>
   );
@@ -242,37 +224,36 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
-    padding: 32,
+    padding: 28,
     width: '100%',
     maxWidth: 400,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowRadius: 12,
+    elevation: 8,
+    alignItems: 'center',
   },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 10,
     marginBottom: 4,
-    gap: 12,
   },
   logoIcon: {
     backgroundColor: '#1A3C6E',
+    padding: 8,
     borderRadius: 12,
-    padding: 10,
   },
   title: {
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#1A3C6E',
-    letterSpacing: 2,
+    letterSpacing: 1,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#64748B',
-    textAlign: 'center',
     marginBottom: 24,
   },
   errorContainer: {
@@ -284,6 +265,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 16,
     gap: 8,
+    width: '100%',
   },
   errorText: {
     color: '#EF4444',
@@ -291,7 +273,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   form: {
-    gap: 16,
+    width: '100%',
+    gap: 14,
   },
   input: {
     backgroundColor: '#F1F5F9',
@@ -329,10 +312,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 6,
   },
-  buttonDisabled: {
-    opacity: 0.7,
+  buttonLoading: {
+    backgroundColor: '#2ECC71', // ✅ Verde dinámico durante carga
   },
   loadingRow: {
     flexDirection: 'row',
@@ -345,7 +328,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   registerContainer: {
-    marginTop: 16,
+    marginTop: 12,
     alignItems: 'center',
   },
   registerText: {
@@ -354,13 +337,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   registerLink: {
-    color: '#1A3C6E',
+    color: '#2ECC71', // ✅ Verde Zenda para destacar
     fontWeight: 'bold',
   },
   versionText: {
-    textAlign: 'center',
-    color: '#CBD5E1',
     fontSize: 11,
-    marginTop: 12,
+    color: '#CBD5E1',
+    marginTop: 20,
   },
 });

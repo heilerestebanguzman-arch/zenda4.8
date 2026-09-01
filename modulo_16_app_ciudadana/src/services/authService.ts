@@ -1,12 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-// Configuración con IP fija para red local
-const API_BASE = 'http://192.168.100.10:8093';
-const API_USERS = 'http://192.168.100.10:3000';
+// ✅ IP CORRECTA (la que usa tu máquina actualmente)
+const API_BASE = 'http://192.168.1.48:8093';
+const API_USERS = 'http://192.168.1.48:3000';
 
 export const authService = {
-  // ✅ Método para guardar sesión (requerido por LoginScreen)
   async saveSession(token: string, user: any) {
     try {
       await AsyncStorage.setItem('auth_token', token);
@@ -20,18 +19,23 @@ export const authService = {
 
   async login(email: string, password: string) {
     try {
+      console.log('📡 Intentando login a:', `${API_BASE}/api/v1/auth/login`);
+      
       const response = await axios.post(`${API_BASE}/api/v1/auth/login`, {
         email,
         password,
       });
+      
+      console.log('📥 Respuesta del backend:', response.data);
+      
       if (response.data && response.data.accessToken) {
-        // Guardar sesión automáticamente
         await this.saveSession(response.data.accessToken, response.data.user);
         return { success: true, token: response.data.accessToken, user: response.data.user };
       }
       return { success: false, error: 'Credenciales inválidas' };
     } catch (error: any) {
-      console.error('Error en login:', error.message);
+      console.error('❌ Error en login:', error.message);
+      console.error('❌ URL:', `${API_BASE}/api/v1/auth/login`);
       return { 
         success: false, 
         error: error.response?.data?.message || 'Error de conexión con el servidor' 

@@ -8,10 +8,10 @@ import {
   ScrollView,
   TextInput,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { authService } from '../services/authService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BottomNavBar } from '../components/BottomNavBar';
 
 export default function ProfileScreen({ navigation }: any) {
@@ -28,7 +28,7 @@ export default function ProfileScreen({ navigation }: any) {
   const loadUserData = async () => {
     const userData = await authService.getUser();
     setUser(userData);
-    setName(userData?.full_name || userData?.name || '');
+    setName(userData?.full_name || userData?.name || userData?.first_name || '');
     setPhone(userData?.phone || '');
   };
 
@@ -48,8 +48,25 @@ export default function ProfileScreen({ navigation }: any) {
           text: 'Cerrar Sesión',
           style: 'destructive',
           onPress: async () => {
-            await authService.logout();
-            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+            try {
+              // Limpiar almacenamiento local
+              await authService.logout();
+              
+              // ✅ Forzar navegación a Login
+              if (Platform.OS === 'web') {
+                // En web, usar window.location para forzar recarga
+                window.location.href = '/';
+              } else {
+                // En móvil, usar navigation.reset
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Login' }],
+                });
+              }
+            } catch (error) {
+              console.error('Error en logout:', error);
+              Alert.alert('Error', 'No se pudo cerrar sesión correctamente.');
+            }
           }
         }
       ]
@@ -67,6 +84,14 @@ export default function ProfileScreen({ navigation }: any) {
       case 'citizen': return 'Ciudadano';
       default: return 'Usuario';
     }
+  };
+
+  const formatName = () => {
+    if (user?.full_name) return user.full_name;
+    if (user?.first_name && user?.last_name) {
+      return `${user.first_name} ${user.last_name}`;
+    }
+    return user?.name || 'Usuario';
   };
 
   return (
@@ -90,7 +115,7 @@ export default function ProfileScreen({ navigation }: any) {
           <View style={styles.avatar}>
             <Ionicons name="person" size={60} color="#FFFFFF" />
           </View>
-          <Text style={styles.userName}>{user?.full_name || user?.name || 'Usuario'}</Text>
+          <Text style={styles.userName}>{formatName()}</Text>
           <Text style={styles.userEmail}>{user?.email || 'usuario@email.com'}</Text>
           <View style={styles.roleBadge}>
             <Text style={styles.roleText}>{getRoleLabel(user?.role || 'citizen')}</Text>
@@ -110,7 +135,7 @@ export default function ProfileScreen({ navigation }: any) {
                 placeholder="Tu nombre"
               />
             ) : (
-              <Text style={styles.fieldValue}>{user?.full_name || user?.name || 'No especificado'}</Text>
+              <Text style={styles.fieldValue}>{formatName()}</Text>
             )}
           </View>
 
@@ -208,7 +233,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 120, // ✅ ESPACIO EXTRA PARA QUE NO LO TAPE LA BARRA
+    paddingBottom: 120,
   },
   avatarContainer: {
     alignItems: 'center',
@@ -349,5 +374,3 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
 });
-
-export default ProfileScreen;
