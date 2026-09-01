@@ -13,7 +13,7 @@ import {
 } from '../../utils/validators';
 import { PasswordInput } from '../../components/PasswordInput';
 
-const API_BASE = 'http://192.168.100.10:3000';
+const API_BASE = 'http://192.168.1.48:3000';
 
 export default function RegisterScreen({ navigation }: any) {
   const [firstName, setFirstName] = useState('');

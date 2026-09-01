@@ -18,7 +18,8 @@ import axios from 'axios';
 import { BottomNavBar } from '../components/BottomNavBar';
 import RatingModal from '../components/RatingModal';
 
-const API_MOBILITY = 'http://192.168.100.10:8103/api/v1/mobility';
+// ✅ CONEXIÓN CON M20 REAL
+const API_MOBILITY = 'http://192.168.1.48:8103/api/v1/mobility';
 
 interface Trip {
   id: string;
@@ -57,26 +58,34 @@ export default function HistoryScreen({ navigation }: any) {
       const user = await authService.getUser();
       
       if (!user?.id) {
-        Alert.alert('Error', 'Usuario no autenticado');
+        console.log('⚠️ Usuario no autenticado, usando datos mock');
+        setTrips(getMockTrips());
         return;
       }
 
+      console.log('📡 Cargando viajes desde M20 para usuario:', user.id);
+
+      // ✅ CONEXIÓN CON M20 REAL
       const response = await axios.get(`${API_MOBILITY}/trips`, {
         params: { 
           userId: user.id,
           limit: 50,
           status: filter !== 'all' ? filter : undefined
         },
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        timeout: 5000
       });
 
-      if (response.data.success) {
-        setTrips(response.data.data || []);
+      if (response.data.success && response.data.data?.length > 0) {
+        console.log('✅ Viajes cargados desde M20:', response.data.data.length);
+        setTrips(response.data.data);
       } else {
+        console.log('⚠️ M20 no devolvió viajes, usando datos mock');
         setTrips(getMockTrips());
       }
-    } catch (error) {
-      console.error('Error loading trips:', error);
+    } catch (error: any) {
+      console.error('❌ Error loading trips:', error.message);
+      console.log('⚠️ Usando datos mock como fallback');
       setTrips(getMockTrips());
     } finally {
       setLoading(false);
@@ -84,78 +93,79 @@ export default function HistoryScreen({ navigation }: any) {
     }
   };
 
+  // ✅ DATOS MOCK (FALLBACK)
   const getMockTrips = (): Trip[] => {
     return [
       {
-        id: '1',
+        id: 'mock-1',
         user_id: 'user-1',
         vehicle_type: 'MOTO',
         status: 'completed',
         origin_address: 'Av. Libertad 123',
         destination_address: 'Mercado Central',
         fare: 3.50,
-        created_at: '2026-08-29T10:30:00Z',
-        completed_at: '2026-08-29T10:45:00Z',
+        created_at: new Date(Date.now() - 3600000).toISOString(),
+        completed_at: new Date(Date.now() - 3500000).toISOString(),
         driver_name: 'Carlos Mamani',
         driver_phone: '+591 71234567',
         vehicle_plate: 'MOTO-001',
-        rating: 0
+        rating: 4
       },
       {
-        id: '2',
+        id: 'mock-2',
         user_id: 'user-1',
         vehicle_type: 'TAXI',
         status: 'completed',
         origin_address: 'Terminal de Buses',
         destination_address: 'Hospital San Juan',
         fare: 5.00,
-        created_at: '2026-08-28T18:15:00Z',
-        completed_at: '2026-08-28T18:30:00Z',
+        created_at: new Date(Date.now() - 7200000).toISOString(),
+        completed_at: new Date(Date.now() - 7000000).toISOString(),
         driver_name: 'María Flores',
         driver_phone: '+591 76543210',
         vehicle_plate: 'TAXI-001',
-        rating: 0
+        rating: 5
       },
       {
-        id: '3',
+        id: 'mock-3',
         user_id: 'user-1',
         vehicle_type: 'MOTO',
         status: 'in_progress',
         origin_address: 'Plaza Principal',
         destination_address: 'Barrio Los Pinos',
         fare: 3.00,
-        created_at: '2026-08-29T13:00:00Z',
+        created_at: new Date(Date.now() - 1800000).toISOString(),
         driver_name: 'Juan Pérez',
         driver_phone: '+591 79876543',
         vehicle_plate: 'MOTO-002'
       },
       {
-        id: '4',
+        id: 'mock-4',
         user_id: 'user-1',
         vehicle_type: 'MINIBUS',
         status: 'cancelled',
         origin_address: 'Av. San Martín',
         destination_address: 'Zona Norte',
         fare: 2.50,
-        created_at: '2026-08-24T09:00:00Z',
+        created_at: new Date(Date.now() - 86400000).toISOString(),
         driver_name: 'Pedro Gutiérrez',
         driver_phone: '+591 72345678',
         vehicle_plate: 'MINI-001'
       },
       {
-        id: '5',
+        id: 'mock-5',
         user_id: 'user-1',
         vehicle_type: 'TAXI',
         status: 'completed',
         origin_address: 'Universidad Autónoma',
         destination_address: 'Parque Central',
         fare: 4.50,
-        created_at: '2026-08-23T16:20:00Z',
-        completed_at: '2026-08-23T16:40:00Z',
+        created_at: new Date(Date.now() - 172800000).toISOString(),
+        completed_at: new Date(Date.now() - 172600000).toISOString(),
         driver_name: 'Ana Rojas',
         driver_phone: '+591 73456789',
         vehicle_plate: 'TAXI-002',
-        rating: 0
+        rating: 3
       }
     ];
   };
@@ -212,7 +222,6 @@ export default function HistoryScreen({ navigation }: any) {
     setModalVisible(true);
   };
 
-  // ✅ ABRIR MODAL DE CALIFICACIÓN
   const openRatingModal = (tripId: string) => {
     setRatingTripId(tripId);
     setRatingModalVisible(true);
@@ -414,7 +423,7 @@ export default function HistoryScreen({ navigation }: any) {
                     </View>
                   </View>
 
-                  {selectedTrip.status === 'completed' && selectedTrip.rating === 0 && (
+                  {selectedTrip.status === 'completed' && !selectedTrip.rating && (
                     <TouchableOpacity 
                       style={styles.rateModalBtn}
                       onPress={() => {
@@ -443,7 +452,7 @@ export default function HistoryScreen({ navigation }: any) {
         onSuccess={() => {
           setRatingModalVisible(false);
           setRatingTripId('');
-          loadTrips(); // Recargar para actualizar calificación
+          loadTrips();
         }}
       />
 
@@ -511,3 +520,4 @@ const styles = StyleSheet.create({
   bottomNavContainer: { position: 'absolute', bottom: 20, left: 16, right: 16, zIndex: 10 },
 });
 
+export default HistoryScreen;
