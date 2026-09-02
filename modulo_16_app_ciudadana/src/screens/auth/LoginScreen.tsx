@@ -26,6 +26,8 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('Ingresar a Zenda');
   const [error, setError] = useState('');
+  
+  // ✅ Animación de shake para errores
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -42,6 +44,7 @@ export default function LoginScreen() {
     loadLastEmail();
   }, []);
 
+  // ✅ Animación de shake
   const shakeError = () => {
     Animated.sequence([
       Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
@@ -73,6 +76,8 @@ export default function LoginScreen() {
 
     try {
       console.log('🔥 Login presionado con email:', email);
+
+      // ✅ Feedback progresivo
       setTimeout(() => setLoadingText('Verificando usuario...'), 400);
       setTimeout(() => setLoadingText('Cargando perfil...'), 800);
 
@@ -83,8 +88,7 @@ export default function LoginScreen() {
         await AsyncStorage.setItem(LAST_EMAIL_KEY, email.trim());
 
         setTimeout(() => {
-          // ✅ NAVEGACIÓN CORREGIDA - Usamos replace en lugar de reset
-          navigation.replace('Home' as never);
+          navigation.replace("Home" as never);
         }, 300);
       } else {
         setError('Credenciales incorrectas. Verifica tu contraseña.');
@@ -308,7 +312,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   buttonLoading: {
-    backgroundColor: '#2ECC71',
+    backgroundColor: '#2ECC71', // ✅ Verde dinámico durante carga
   },
   loadingRow: {
     flexDirection: 'row',
@@ -330,7 +334,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   registerLink: {
-    color: '#2ECC71',
+    color: '#2ECC71', // ✅ Verde Zenda para destacar
     fontWeight: 'bold',
   },
   versionText: {
