@@ -26,7 +26,7 @@ import SOSButton from '../components/SOSButton';
 import RatingModal from '../components/RatingModal';
 
 const { width, height } = Dimensions.get('window');
-const API_MOBILITY = 'http://192.168.1.200:8103/api/v1/mobility';
+const API_MOBILITY = 'http://:8103/api/v1/mobility';
 const OSRM_API = 'https://router.project-osrm.org/route/v1/driving';
 
 const ALL_VEHICLES = [
@@ -159,6 +159,14 @@ export default function HomeScreen({ navigation, route }: any) {
   }, [originCoords, destinationCoords, selectedService, state]);
 
   const calculateFare = async () => {
+  if (!originCoords || !destinationCoords) {
+    console.log("⏳ Esperando coordenadas...");
+    return;
+  }
+  if (!originCoords || !destinationCoords) {
+    console.log("⏳ Esperando coordenadas...");
+    return;
+  }
     setIsCalculatingFare(true);
     try {
       const fare = await fareService.calculateFare(

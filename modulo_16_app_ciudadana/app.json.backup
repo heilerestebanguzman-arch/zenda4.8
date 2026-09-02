@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "ZENDA",
+    "slug": "zenda-app-ciudadana",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "newArchEnabled": false,
+    "android": {
+      "package": "com.zenda.app",
+    }
+  }
+}
