@@ -88,7 +88,7 @@ export default function LoginScreen() {
         await AsyncStorage.setItem(LAST_EMAIL_KEY, email.trim());
 
         setTimeout(() => {
-          navigation.replace("Home" as never);
+          navigation.navigate("Home" as never);
         }, 300);
       } else {
         setError('Credenciales incorrectas. Verifica tu contraseña.');
