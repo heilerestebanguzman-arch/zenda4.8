@@ -14,7 +14,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 
-const API_USERS = 'http://:3000';
+const API_USERS = 'http://192.168.1.62:3000';
 
 export default function OTPScreen() {
   const navigation = useNavigation();

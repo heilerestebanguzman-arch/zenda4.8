@@ -18,7 +18,7 @@ import axios from 'axios';
 import { BottomNavBar } from '../components/BottomNavBar';
 import RatingModal from '../components/RatingModal';
 
-const API_MOBILITY = 'http://:8103/api/v1/mobility';
+const API_MOBILITY = 'http://192.168.1.62:8103/api/v1/mobility';
 
 interface Trip {
   id: string;

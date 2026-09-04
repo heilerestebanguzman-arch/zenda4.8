@@ -2,8 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 // ✅ IP CORRECTA (la que usa tu máquina actualmente)
-const API_BASE = 'http://:8093';
-const API_USERS = 'http://:3000';
+const API_BASE = 'http://192.168.1.62:8093';
+const API_USERS = 'http://192.168.1.62:3000';
 
 export const authService = {
   async saveSession(token: string, user: any) {
