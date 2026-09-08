@@ -485,3 +485,169 @@ app.listen(PORT, () => {
 });
 
 export default app;
+
+// Importar heatmap service
+import heatmapService from './services/heatmapService';
+
+// Endpoint para obtener zonas de calor
+app.get('/api/v1/mobility/heatmap', async (req: any, res: any) => {
+  try {
+    const { lat, lng, radius } = req.query;
+    
+    let zones;
+    if (lat && lng) {
+      zones = await heatmapService.getNearbyZones(
+        parseFloat(lat as string),
+        parseFloat(lng as string),
+        radius ? parseFloat(radius as string) : 5000
+      );
+    } else {
+      zones = await heatmapService.getHeatmapZones();
+    }
+    
+    res.json({
+      success: true,
+      data: zones,
+    });
+  } catch (error) {
+    console.error('Error al obtener heatmap:', error);
+    res.status(500).json({ success: false, message: 'Error al obtener datos de demanda' });
+  }
+});
+
+// Endpoint para actualizar demanda de una zona (webhook)
+app.post('/api/v1/mobility/heatmap/update', async (req: any, res: any) => {
+  try {
+    const { zoneId, intensity } = req.body;
+    
+    // Aquí se actualizaría la demanda en la base de datos
+    console.log(`📊 Actualizando zona ${zoneId} a intensidad ${intensity}`);
+    
+    res.json({
+      success: true,
+      message: 'Zona actualizada',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error al actualizar zona' });
+  }
+});
+
+// Importar el dispatcher
+import dispatcherService from './services/dispatcherService';
+
+// Modificar el endpoint de solicitud
+app.post('/api/v1/mobility/request', async (req: any, res: any) => {
+  try {
+    const { userId, lat, lng, destination, destinationLat, destinationLng, vehicleType } = req.body;
+
+    if (!userId || !lat || !lng) {
+      return res.status(400).json({ success: false, error: 'userId, lat y lng son requeridos' });
+    }
+
+    // 1. Crear solicitud de viaje
+    const tripId = `trip_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const tripRequest = {
+      id: tripId,
+      userId,
+      originLat: lat,
+      originLng: lng,
+      destLat: destinationLat || lat + 0.01,
+      destLng: destinationLng || lng + 0.01,
+      vehicleType: vehicleType || 'MOTO',
+      createdAt: new Date().toISOString(),
+    };
+
+    // 2. Buscar el mejor conductor usando el dispatcher
+    const assignment = await dispatcherService.findBestDriver(tripRequest);
+
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        error: 'No hay conductores disponibles en tu zona',
+      });
+    }
+
+    // 3. Notificar al conductor
+    await dispatcherService.notifyDriver(assignment, tripRequest);
+
+    // 4. Devolver respuesta con el conductor asignado
+    const driver = dispatcherService['drivers'].get(assignment.driverId);
+
+    res.json({
+      success: true,
+      data: {
+        trip_id: tripId,
+        status: 'assigned',
+        vehicle: {
+          id: driver?.id,
+          plate: `${vehicleType || 'MOTO'}-001`,
+          type: vehicleType || 'MOTO',
+        },
+        driver: {
+          id: driver?.id,
+          name: driver?.name || 'Conductor Asignado',
+          rating: driver?.rating || 4.5,
+        },
+        eta: assignment.eta,
+        fare: 3.50 + assignment.distance * 0.8,
+        distance: assignment.distance,
+        score: assignment.score,
+      },
+    });
+
+  } catch (error) {
+    console.error('Error en request:', error);
+    res.status(500).json({ success: false, error: 'Error al procesar la solicitud' });
+  }
+});
+
+// Endpoint para actualizar ubicación del conductor (usado por el dispatcher)
+app.post('/api/v1/mobility/driver/location', async (req: any, res: any) => {
+  try {
+    const { driverId, lat, lng, status } = req.body;
+
+    if (driverId) {
+      dispatcherService.updateDriverLocation(driverId, lat, lng);
+      if (status) {
+        dispatcherService.updateDriverStatus(driverId, status);
+      }
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false });
+  }
+});
+
+// Endpoint para registrar un conductor en el dispatcher
+app.post('/api/v1/mobility/driver/register', async (req: any, res: any) => {
+  try {
+    const { id, name, lat, lng, vehicleType, rating } = req.body;
+
+    dispatcherService.registerDriver({
+      id,
+      name: name || 'Conductor',
+      lat: lat || -17.5206,
+      lng: lng || -63.1732,
+      status: 'available',
+      vehicle_type: vehicleType || 'MOTO',
+      rating: rating || 4.5,
+      trips_today: 0,
+      last_active: new Date().toISOString(),
+    });
+
+    res.json({ success: true, message: 'Conductor registrado en dispatcher' });
+  } catch (error) {
+    res.status(500).json({ success: false });
+  }
+});
+
+// Endpoint para obtener estadísticas del dispatcher
+app.get('/api/v1/mobility/dispatcher/stats', async (req: any, res: any) => {
+  try {
+    const stats = dispatcherService.getStats();
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    res.status(500).json({ success: false });
+  }
+});
