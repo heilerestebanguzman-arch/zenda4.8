@@ -9,7 +9,6 @@ import {
   RefreshControl,
   Alert,
   Modal,
-  TextInput,
   ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +17,8 @@ import axios from 'axios';
 import { BottomNavBar } from '../components/BottomNavBar';
 import RatingModal from '../components/RatingModal';
 
-const API_MOBILITY = 'http://:8103/api/v1/mobility';
+// ✅ CONEXIÓN CON M20 REAL (IP CORREGIDA)
+const API_MOBILITY = 'http://192.168.1.88:8103/api/v1/mobility';
 
 interface Trip {
   id: string;
@@ -57,107 +57,37 @@ export default function HistoryScreen({ navigation }: any) {
       const user = await authService.getUser();
       
       if (!user?.id) {
-        Alert.alert('Error', 'Usuario no autenticado');
+        console.log('⚠️ Usuario no autenticado');
+        setTrips([]);
         return;
       }
 
-      const response = await axios.get(`${API_MOBILITY}/trips`, {
+      console.log('📡 Cargando viajes desde M20 para usuario:', user.id);
+
+      const response = await axios.get(`${API_MOBILITY}/history/${user.id}`, {
         params: { 
           userId: user.id,
           limit: 50,
           status: filter !== 'all' ? filter : undefined
         },
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        timeout: 5000
       });
 
-      if (response.data.success) {
-        setTrips(response.data.data || []);
+      if (response.data.success && response.data.data?.length > 0) {
+        console.log('✅ Viajes cargados desde M20:', response.data.data.length);
+        setTrips(response.data.data);
       } else {
-        setTrips(getMockTrips());
+        console.log('⚠️ M20 no devolvió viajes');
+        setTrips([]);
       }
-    } catch (error) {
-      console.error('Error loading trips:', error);
-      setTrips(getMockTrips());
+    } catch (error: any) {
+      console.error('❌ Error loading trips:', error.message);
+      setTrips([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
-
-  const getMockTrips = (): Trip[] => {
-    return [
-      {
-        id: '1',
-        user_id: 'user-1',
-        vehicle_type: 'MOTO',
-        status: 'completed',
-        origin_address: 'Av. Libertad 123',
-        destination_address: 'Mercado Central',
-        fare: 3.50,
-        created_at: '2026-08-29T10:30:00Z',
-        completed_at: '2026-08-29T10:45:00Z',
-        driver_name: 'Carlos Mamani',
-        driver_phone: '+591 71234567',
-        vehicle_plate: 'MOTO-001',
-        rating: 0
-      },
-      {
-        id: '2',
-        user_id: 'user-1',
-        vehicle_type: 'TAXI',
-        status: 'completed',
-        origin_address: 'Terminal de Buses',
-        destination_address: 'Hospital San Juan',
-        fare: 5.00,
-        created_at: '2026-08-28T18:15:00Z',
-        completed_at: '2026-08-28T18:30:00Z',
-        driver_name: 'María Flores',
-        driver_phone: '+591 76543210',
-        vehicle_plate: 'TAXI-001',
-        rating: 0
-      },
-      {
-        id: '3',
-        user_id: 'user-1',
-        vehicle_type: 'MOTO',
-        status: 'in_progress',
-        origin_address: 'Plaza Principal',
-        destination_address: 'Barrio Los Pinos',
-        fare: 3.00,
-        created_at: '2026-08-29T13:00:00Z',
-        driver_name: 'Juan Pérez',
-        driver_phone: '+591 79876543',
-        vehicle_plate: 'MOTO-002'
-      },
-      {
-        id: '4',
-        user_id: 'user-1',
-        vehicle_type: 'MINIBUS',
-        status: 'cancelled',
-        origin_address: 'Av. San Martín',
-        destination_address: 'Zona Norte',
-        fare: 2.50,
-        created_at: '2026-08-24T09:00:00Z',
-        driver_name: 'Pedro Gutiérrez',
-        driver_phone: '+591 72345678',
-        vehicle_plate: 'MINI-001'
-      },
-      {
-        id: '5',
-        user_id: 'user-1',
-        vehicle_type: 'TAXI',
-        status: 'completed',
-        origin_address: 'Universidad Autónoma',
-        destination_address: 'Parque Central',
-        fare: 4.50,
-        created_at: '2026-08-23T16:20:00Z',
-        completed_at: '2026-08-23T16:40:00Z',
-        driver_name: 'Ana Rojas',
-        driver_phone: '+591 73456789',
-        vehicle_plate: 'TAXI-002',
-        rating: 0
-      }
-    ];
   };
 
   const onRefresh = () => {
@@ -185,11 +115,13 @@ export default function HistoryScreen({ navigation }: any) {
     }
   };
 
+  // ✅ VERSIÓN CORREGIDA DE getVehicleIcon
   const getVehicleIcon = (type: string) => {
     switch(type) {
       case 'MOTO': return 'bicycle-outline';
       case 'TAXI': return 'car-outline';
       case 'MINIBUS': return 'bus-outline';
+      case 'CARGO': return 'cube-outline';
       default: return 'car-outline';
     }
   };
@@ -212,7 +144,6 @@ export default function HistoryScreen({ navigation }: any) {
     setModalVisible(true);
   };
 
-  // ✅ ABRIR MODAL DE CALIFICACIÓN
   const openRatingModal = (tripId: string) => {
     setRatingTripId(tripId);
     setRatingModalVisible(true);
@@ -232,12 +163,12 @@ export default function HistoryScreen({ navigation }: any) {
           <View>
             <Text style={styles.tripType}>{item.vehicle_type}</Text>
             <Text style={styles.tripRoute}>
-              {item.origin_address.split(',')[0]} → {item.destination_address.split(',')[0]}
+              {item.origin_address?.split(',')[0] || 'Origen'} → {item.destination_address?.split(',')[0] || 'Destino'}
             </Text>
           </View>
         </View>
         <View style={styles.tripRight}>
-          <Text style={styles.tripFare}>Bs {item.fare.toFixed(2)}</Text>
+          <Text style={styles.tripFare}>Bs {item.fare?.toFixed(2) || '0.00'}</Text>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
             <Ionicons name={getStatusIcon(item.status)} size={12} color={getStatusColor(item.status)} />
             <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
@@ -359,7 +290,7 @@ export default function HistoryScreen({ navigation }: any) {
                     <Ionicons name="location-outline" size={20} color="#1A3C6E" />
                     <View>
                       <Text style={styles.detailLabel}>Origen</Text>
-                      <Text style={styles.detailValue}>{selectedTrip.origin_address}</Text>
+                      <Text style={styles.detailValue}>{selectedTrip.origin_address || 'No especificado'}</Text>
                     </View>
                   </View>
 
@@ -367,7 +298,7 @@ export default function HistoryScreen({ navigation }: any) {
                     <Ionicons name="navigate-outline" size={20} color="#2ECC71" />
                     <View>
                       <Text style={styles.detailLabel}>Destino</Text>
-                      <Text style={styles.detailValue}>{selectedTrip.destination_address}</Text>
+                      <Text style={styles.detailValue}>{selectedTrip.destination_address || 'No especificado'}</Text>
                     </View>
                   </View>
 
@@ -377,7 +308,7 @@ export default function HistoryScreen({ navigation }: any) {
                     <Ionicons name="cash-outline" size={20} color="#F5A623" />
                     <View>
                       <Text style={styles.detailLabel}>Costo</Text>
-                      <Text style={styles.detailValue}>Bs {selectedTrip.fare.toFixed(2)}</Text>
+                      <Text style={styles.detailValue}>Bs {selectedTrip.fare?.toFixed(2) || '0.00'}</Text>
                     </View>
                   </View>
 
@@ -414,7 +345,7 @@ export default function HistoryScreen({ navigation }: any) {
                     </View>
                   </View>
 
-                  {selectedTrip.status === 'completed' && selectedTrip.rating === 0 && (
+                  {selectedTrip.status === 'completed' && !selectedTrip.rating && (
                     <TouchableOpacity 
                       style={styles.rateModalBtn}
                       onPress={() => {
@@ -443,7 +374,7 @@ export default function HistoryScreen({ navigation }: any) {
         onSuccess={() => {
           setRatingModalVisible(false);
           setRatingTripId('');
-          loadTrips(); // Recargar para actualizar calificación
+          loadTrips();
         }}
       />
 
@@ -510,4 +441,3 @@ const styles = StyleSheet.create({
   rateModalBtnText: { color: '#FFFFFF', fontWeight: '600', fontSize: 16 },
   bottomNavContainer: { position: 'absolute', bottom: 20, left: 16, right: 16, zIndex: 10 },
 });
-
