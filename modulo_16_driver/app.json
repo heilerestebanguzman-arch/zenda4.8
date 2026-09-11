@@ -1,12 +1,37 @@
 {
   "expo": {
-    "name": "ZENDA",
+    "name": "ZENDA Conductor",
     "slug": "zenda-driver",
-    "version": "1.0.0",
+    "version": "4.8.0",
     "orientation": "portrait",
-    "newArchEnabled": false,
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1A3C6E"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.zenda.driver"
+    },
     "android": {
-      "package": "com.zenda.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1A3C6E"
+      },
+      "package": "com.zenda.driver"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "sdkVersion": "54.0.0",
+    "newArchEnabled": false,
+    "extra": {
+      "eas": {
+        "projectId": "zenda-driver"
+      }
     }
   }
 }
