@@ -18,7 +18,7 @@ import { BottomNavBar } from '../components/BottomNavBar';
 import RatingModal from '../components/RatingModal';
 
 // ✅ CONEXIÓN CON M20 REAL (IP CORREGIDA)
-const API_MOBILITY = 'http://192.168.1.88:8103/api/v1/mobility';
+const API_MOBILITY = 'http://192.168.100.10:8103/api/v1/mobility';
 
 interface Trip {
   id: string;

@@ -5,7 +5,7 @@ import axios from 'axios';
 import { authService } from './authService';
 import CryptoJS from 'crypto-js';
 
-const API_BASE = 'http://192.168.1.88:8093';
+const API_BASE = 'http://192.168.100.10:8093';
 const ENCRYPTION_KEY = 'zenda-security-key-2026';
 
 export interface SecurityAlert {

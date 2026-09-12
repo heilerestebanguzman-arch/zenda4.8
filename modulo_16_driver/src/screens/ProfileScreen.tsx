@@ -17,7 +17,7 @@ import { authService } from '../services/authService';
 import { BottomNavBar } from '../components/BottomNavBar';
 import axios from 'axios';
 
-const API_BASE = 'http://192.168.1.88:8093';
+const API_BASE = 'http://192.168.100.10:8093';
 
 interface DriverProfile {
   id: string;

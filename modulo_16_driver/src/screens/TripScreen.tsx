@@ -18,7 +18,7 @@ import { authService } from '../services/authService';
 import SOSButton from "../components/SOSButton";
 import { BottomNavBar } from '../components/BottomNavBar';
 
-const API_MOBILITY = 'http://192.168.1.88:8103/api/v1/mobility';
+const API_MOBILITY = 'http://192.168.100.10:8103/api/v1/mobility';
 
 interface TripData {
   id: string;

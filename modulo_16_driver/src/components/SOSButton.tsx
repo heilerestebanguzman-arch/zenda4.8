@@ -16,7 +16,7 @@ import { Audio } from 'expo-av';
 import axios from 'axios';
 import { authService } from '../services/authService';
 
-const API_BASE = 'http://192.168.1.88:8093';
+const API_BASE = 'http://192.168.100.10:8093';
 
 interface SOSButtonProps {
   tripId?: string;

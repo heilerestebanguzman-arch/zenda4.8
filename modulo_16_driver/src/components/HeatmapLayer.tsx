@@ -4,7 +4,7 @@ import MapView, { Circle } from 'react-native-maps';
 import axios from 'axios';
 import { authService } from '../services/authService';
 
-const API_MOBILITY = 'http://192.168.1.88:8103/api/v1/mobility';
+const API_MOBILITY = 'http://192.168.100.10:8103/api/v1/mobility';
 
 interface HeatmapZone {
   id: string;

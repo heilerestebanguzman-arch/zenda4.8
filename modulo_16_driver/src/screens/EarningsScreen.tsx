@@ -14,7 +14,7 @@ import { authService } from '../services/authService';
 import axios from 'axios';
 import { BottomNavBar } from '../components/BottomNavBar';
 
-const API_BASE = 'http://192.168.1.88:8093';
+const API_BASE = 'http://192.168.100.10:8093';
 
 interface WalletData {
   balance: number;
