@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#1A3C6E"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.zenda.ciudadana"
@@ -30,8 +32,9 @@
     "newArchEnabled": false,
     "extra": {
       "eas": {
-        "projectId": "zenda-app-ciudadana"
+        "projectId": "6d2a008d-f24c-4284-ae78-cece9392b810"
       }
-    }
+    },
+    "owner": "heilers-team"
   }
 }
