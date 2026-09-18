@@ -9,11 +9,7 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk",
-        "gradleCommand": ":app:assembleDebug",
-        "image": "latest"
-      },
-      "env": {
-        "EXPO_USE_COMMUNITY_AUTOLINKING": "1"
+        "gradleCommand": ":app:assembleDebug"
       }
     },
     "preview": {
