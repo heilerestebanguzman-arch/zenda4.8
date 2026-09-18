@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ZENDA Ciudadana",
+    "name": "Zenda App Ciudadana",
     "slug": "zenda-app-ciudadana",
     "version": "4.8.0",
     "orientation": "portrait",
@@ -9,32 +9,24 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1A3C6E"
+      "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.zenda.ciudadana"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1A3C6E"
+        "backgroundColor": "#ffffff"
       },
-      "package": "com.zenda.ciudadana"
+      "package": "com.heilers.zendaappciudadana"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "sdkVersion": "54.0.0",
-    "newArchEnabled": false,
+    "scheme": "zenda",
+    "sdkVersion": "57.0.0",
     "extra": {
       "eas": {
         "projectId": "6d2a008d-f24c-4284-ae78-cece9392b810"
       }
-    },
-    "owner": "heilers-team"
+    }
   }
 }
