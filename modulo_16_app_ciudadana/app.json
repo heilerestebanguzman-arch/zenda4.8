@@ -19,7 +19,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.heilers.zendaappciudadana"
+      "package": "com.heilers.zendaappciudadana",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "scheme": "zenda",
     "sdkVersion": "57.0.0",
@@ -27,6 +31,14 @@
       "eas": {
         "projectId": "6d2a008d-f24c-4284-ae78-cece9392b810"
       }
-    }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Zenda necesita tu ubicación para mostrarte el mapa y calcular rutas."
+        }
+      ]
+    ]
   }
 }
