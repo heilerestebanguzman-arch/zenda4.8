@@ -3,3 +3,5 @@
 /ios/
 /android/
 /.expo/
+.env.backup
+src_backup_ip/
